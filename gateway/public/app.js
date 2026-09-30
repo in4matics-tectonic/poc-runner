@@ -164,17 +164,59 @@ addEventListener('keydown', (e) => {
 
 show(fromHash());
 
+// ---------- backend ----------
+// The showcase calls the backend same-origin through the gateway (/v1). Tokens of the demo users are kept for this
+// tab only and shared by the reset button and the tour, because logins are limited to 5 per minute.
+const DEMO_PASSWORD = 'in4matics-must-win';
+const TOKEN_KEY = 'poc.tokens';
+function tokens() {
+  try { return JSON.parse(sessionStorage.getItem(TOKEN_KEY) || '{}'); } catch { return {}; }
+}
+const logins = {};
+function token(user, fresh = false) {
+  const t = tokens()[user];
+  if (!fresh && t && t.exp > Date.now()) return Promise.resolve(t.token);
+  // Parallel calls share one login
+  logins[user] ??= login(user).finally(() => delete logins[user]);
+  return logins[user];
+}
+async function login(user) {
+  const res = await fetch('/v1/auth/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: user, password: DEMO_PASSWORD }),
+    signal: AbortSignal.timeout(8000),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.error || `login ${res.status}`), { status: res.status });
+  try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...tokens(), [user]: { token: body.token, exp: Date.now() + (body.expiresIn - 60) * 1000 } })); } catch {}
+  return body.token;
+}
+/** Backend call as one of the demo users; logs in again once when the token was rejected (e.g. backend restart) */
+async function api(user, method, path, body, retry = true) {
+  const res = await fetch(`/v1${path}`, {
+    method,
+    headers: { authorization: `Bearer ${await token(user, !retry)}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
+  if (res.status === 401 && retry) return api(user, method, path, body, false);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw Object.assign(new Error(data?.error || `${path}: ${res.status}`), { status: res.status });
+  return data;
+}
+
 // ---------- reset ----------
 // Puts every part back at the start: backend demo state (clock, signals, consents, audit) via the
 // adviseur's demo reset, every chat conversation, and a fresh load of each pane. Logins stay.
 const resetBtn = document.getElementById('resetAll');
 const RESET_LABEL = resetBtn.textContent;
-async function post(path, body, token) {
-  const headers = { 'content-type': 'application/json' };
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body ?? {}), signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`${path}: ${res.status}`);
-  return res.json();
+async function resetDemo() {
+  await api('adviseur', 'POST', '/demo/reset');
+  const res = await fetch('/reset/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`/reset/chat: ${res.status}`);
+  PARTS.forEach(reload);
 }
 async function resetAll() {
   if (!confirm('Alles terugzetten naar de beginstand? De demo-klok, signalen, toestemmingen en alle chats worden gewist.')) return;
@@ -182,10 +224,7 @@ async function resetAll() {
   resetBtn.textContent = 'Resetten…';
   delete resetBtn.dataset.state;
   try {
-    const { token } = await post('/reset/login', { username: 'adviseur', password: 'in4matics-must-win' });
-    await post('/reset/backend', null, token);
-    await post('/reset/chat');
-    PARTS.forEach(reload);
+    await resetDemo();
     resetBtn.dataset.state = 'ok';
     resetBtn.textContent = '✓ Gereset';
   } catch (e) {

@@ -93,10 +93,17 @@
   body[data-app="gemini"] .empty h2 { font-size: 34px; background: linear-gradient(74deg, #4285f4 0, #9b72cb 9%, #d96570 20%, #d96570 24%, #9b72cb 35%, #4285f4 44%);
     -webkit-background-clip: text; background-clip: text; color: transparent; }
   body[data-app="gemini"] .empty .sub { font-size: 26px; color: #c4c7c5; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
-  body[data-app="gemini"] .chips { justify-content: flex-start; }
-  .chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 99px; padding: 8px 14px; font-size: 13px; cursor: pointer; text-align: left; }
-  body[data-app="gemini"] .chips button { border-radius: 12px; border: 0; background: var(--surface); }
+  /* Start cards: one tap shares a life moment with KBC, so the backoffice sees it right away */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 22px; text-align: left; }
+  .cards button { display: grid; gap: 4px; align-content: start; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 16px; padding: 14px; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
+  .cards button:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+  .cards .ic { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+  .cards .t { font-weight: 600; font-size: 14px; }
+  .cards .d { color: var(--muted); font-size: 13px; line-height: 1.4; }
+  .cards .share { margin-top: 6px; font-size: 11px; color: var(--tool-ink); }
+  body[data-app="gemini"] .cards button { border: 0; }
+  @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
 
   /* ---------- Kate ---------- */
   body[data-app="kate"] .log { max-width: 520px; gap: 6px; padding: 14px 14px 10px; }
@@ -221,12 +228,15 @@ $('loginText').textContent = APP === 'kate'
   ? 'Meld aan als klant om met Kate te praten.'
   : 'Meld aan als klant. Je assistent is gekoppeld aan Kate Studio en deelt enkel iets met jouw akkoord.';
 
-// Each suggestion leads to something the backoffice sees: a shared moment (EIGEN_AI signal) or a revoke
-const SUGGESTIES = [
-  'We denken aan een tweede kindje, misschien volgend voorjaar. Waar moeten we allemaal aan denken?',
-  'We kijken rond naar een groter huis. Hoeveel zouden we kunnen lenen?',
-  'Ik speel met het idee om een eigen zaak te starten. Waar begin ik?',
-  'Trek het gedeelde moment gezinsuitbreiding maar in.',
+// Start cards: each message says what to share, so the assistant shares the moment in its first turn
+// and the backoffice sees the EIGEN_AI signal right away. The user bubble shows exactly what was consented to.
+const START = [
+  { ic: '🏡', t: 'We willen een huis kopen', d: 'Hoeveel kunnen we lenen, en wat komt erbij kijken?',
+    text: 'We willen een huis kopen en kijken volop rond. Deel "huis kopen" (we zijn bezig) met KBC. Hoeveel zouden we kunnen lenen?' },
+  { ic: '👶', t: 'We denken aan een (groter) gezin', d: 'Waar moeten we allemaal aan denken?',
+    text: 'We denken eraan om ons gezin uit te breiden. Deel "gezinsuitbreiding" (we denken erover na) met KBC. Waar moeten we allemaal aan denken?' },
+  { ic: '💼', t: 'Ik wil een zaak starten', d: 'Waar begin ik als zelfstandige?',
+    text: 'Ik wil een eigen zaak starten. Deel "zaak starten" (we denken erover na) met KBC. Waar begin ik?' },
 ];
 const TOOL_LABEL = { share_life_moment: 'Gedeeld met KBC', get_moment_plan: 'Plan gelezen bij KBC', revoke_moment: 'Ingetrokken bij KBC' };
 const KATE_NOTE = { bevestig_moment: '✓ Bevestigd', niet_voor_ons: 'Gewist' };
@@ -345,6 +355,7 @@ function pills(labels, onClick) {
 }
 
 function addEvent(ev) {
+  tell({ kateStudio: 'event', event: { type: ev.type, name: ev.name, isError: ev.isError, moment: ev.moment } });
   $('log').querySelector('.empty')?.remove();
   if (ev.type === 'user') {
     el('msg user').textContent = ev.text;
@@ -408,15 +419,18 @@ function showEmpty() {
   }
   const e = el('empty');
   e.innerHTML = APP === 'gemini'
-    ? '<h2></h2><div class="sub">Waarmee kan ik je helpen?</div><div class="chips"></div>'
-    : '<h2></h2><div>Probeer bijvoorbeeld:</div><div class="chips"></div>';
+    ? '<h2></h2><div class="sub">Waarmee kan ik je helpen?</div><div class="cards"></div>'
+    : '<h2></h2><div>Waar zijn jullie mee bezig?</div><div class="cards"></div>';
   e.querySelector('h2').textContent = APP === 'gemini' ? `Hallo, ${name()}` : APP === 'chatgpt' ? 'Waar kan ik mee helpen?' : 'Waarmee kan ik helpen?';
-  for (const s of SUGGESTIES) {
+  for (const c of START) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = s;
-    b.onclick = () => ask(s);
-    e.querySelector('.chips').append(b);
+    b.innerHTML = '<span class="ic"></span><span class="t"></span><span class="d"></span><span class="share">🔗 Deelt dit moment met KBC</span>';
+    b.querySelector('.ic').textContent = c.ic;
+    b.querySelector('.t').textContent = c.t;
+    b.querySelector('.d').textContent = c.d;
+    b.onclick = () => ask(c.text);
+    e.querySelector('.cards').append(b);
   }
 }
 
@@ -432,6 +446,7 @@ function showHistory(events) {
 
 async function render() {
   const inChat = Boolean(session);
+  tell({ kateStudio: 'ready', user: session?.user.sub ?? null });
   renderHeader();
   $('loginView').classList.toggle('hidden', inChat);
   $('chatView').classList.toggle('hidden', !inChat);
@@ -461,6 +476,7 @@ function done(t) {
 async function run(fn) {
   if (busy) return;
   busy = true;
+  tell({ kateStudio: 'busy', busy: true });
   $('send').disabled = true;
   const t = typing();
   try {
@@ -473,6 +489,7 @@ async function run(fn) {
     if (e.status !== 401) APP === 'kate' ? kateBubbles([msg || 'Er ging iets mis. Probeer opnieuw.']) : (el('msg ai').textContent = msg || 'Er ging iets mis. Probeer opnieuw.');
   } finally {
     busy = false;
+    tell({ kateStudio: 'busy', busy: false });
     $('send').disabled = false;
     $('input').focus();
   }
@@ -540,7 +557,36 @@ if (window.top === window) {
   document.body.classList.add('standalone');
 }
 
-fetch('/api/status').then((r) => r.json()).then((s) => $('banner').classList.toggle('hidden', s.llm)).catch(() => {});
+// ---------- showcase tour bridge ----------
+// In the PoC showcase the guided tour can log this pane in as the demo customer, type a message for the customer,
+// or press one of Kate's buttons, and it hears what happens here. Only messages from the parent frame count;
+// they never carry credentials. Everything still goes through the normal UI, so it looks the same as clicking.
+function tell(msg) {
+  if (window.parent !== window) window.parent.postMessage({ part: 'chat', app: APP, ...msg }, '*');
+}
+addEventListener('message', async (e) => {
+  if (e.source !== window.parent || typeof e.data?.kateStudio !== 'string') return;
+  const m = e.data;
+  if (m.kateStudio === 'hello') tell({ kateStudio: 'ready', user: session?.user.sub ?? null });
+  if (m.kateStudio === 'login' && !session) {
+    try { setSession(await call('/api/login', { username: 'lien', password: 'in4matics-must-win' })); }
+    catch (err) { tell({ kateStudio: 'error', error: err.message }); }
+  }
+  if (m.kateStudio === 'ask' && session && APP !== 'kate' && typeof m.text === 'string') {
+    // Type it visibly, then send: the audience sees the customer's message appear
+    const input = $('input');
+    input.value = '';
+    for (const ch of m.text) { input.value += ch; autosize(); await new Promise((r) => setTimeout(r, 12)); }
+    await new Promise((r) => setTimeout(r, 250));
+    $('compose').requestSubmit();
+  }
+  if (m.kateStudio === 'answer' && session) {
+    const b = [...$('log').querySelectorAll('.pills button:not(:disabled)')].findLast((x) => x.textContent === m.answer);
+    b ? b.click() : tell({ kateStudio: 'error', error: 'no_button' });
+  }
+});
+
+fetch('/api/status').then((r) => r.json()).then((s) => { $('banner').classList.toggle('hidden', s.llm); tell({ kateStudio: 'llm', llm: s.llm }); }).catch(() => {});
 render();
 </script>
 </body>
