@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="referrer" content="no-referrer" />
+<title>Eigen AI</title>
+<style>
+  :root {
+    --bg: #f7f5f1; --surface: #ffffff; --ink: #1d1b18; --muted: #6f6a62; --line: #e7e2d9;
+    --accent: #c96442; --accent-ink: #fff; --user: #efe9df; --tool: #eef6fb; --tool-line: #bfdcee; --tool-ink: #0b4f79;
+    --err: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1b19; --surface: #262522; --ink: #ece8e1; --muted: #a39d93; --line: #3a3834;
+      --user: #34312c; --tool: #1c2d38; --tool-line: #2e5470; --tool-ink: #9fd2f2; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; color: #fff; font-weight: 700; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .who { margin-left: auto; color: var(--muted); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+  header button { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--tool); color: var(--tool-ink); border: 1px solid var(--tool-line); }
+  .conn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2e9d5b; }
+
+  main { flex: 1; overflow-y: auto; }
+  .log { max-width: 720px; margin: 0 auto; padding: 24px 20px 12px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.user { align-self: flex-end; background: var(--user); padding: 10px 14px; border-radius: 16px 16px 4px 16px; max-width: 85%; }
+  .msg.ai { align-self: flex-start; max-width: 100%; }
+  .tool { align-self: flex-start; border: 1px solid var(--tool-line); background: var(--tool); color: var(--tool-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; max-width: 100%; }
+  .tool.err { border-color: var(--err); color: var(--err); background: transparent; }
+  .tool b { font-weight: 600; }
+  .tool details { margin-top: 6px; }
+  .tool summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .tool pre { margin: 6px 0 0; font-size: 12px; white-space: pre-wrap; max-height: 220px; overflow: auto; color: var(--ink); }
+  .typing { color: var(--muted); font-size: 13px; }
+  .typing::after { content: "…"; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+
+  .empty { text-align: center; color: var(--muted); margin-top: 8vh; }
+  .empty h2 { color: var(--ink); font-weight: 600; font-size: 22px; margin: 0 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chips button:hover { border-color: var(--accent); }
+
+  form.compose { max-width: 720px; width: 100%; margin: 0 auto; padding: 8px 20px 18px; }
+  .box { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 8px 8px 8px 14px; }
+  textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--ink); font: inherit; max-height: 160px; padding: 6px 0; }
+  .send { width: 36px; height: 36px; border-radius: 10px; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; font-size: 18px; }
+  .send:disabled { opacity: .4; cursor: default; }
+  .note { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
+
+  .login { max-width: 360px; margin: 12vh auto 0; padding: 0 20px; }
+  .login h2 { font-size: 22px; margin: 0 0 4px; }
+  .login p { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+  .personas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .personas label { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; font-size: 14px; }
+  .personas input { display: none; }
+  .personas label:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .personas small { display: block; color: var(--muted); font-size: 11px; }
+  .login input[type=password] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
+  .login button { width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .error { color: var(--err); font-size: 13px; margin-top: 8px; min-height: 1em; }
+  .banner { max-width: 720px; margin: 12px auto 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--err); color: var(--err); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">✦</div>
+  <h1>Eigen AI</h1>
+  <div class="who" id="who" hidden>
+    <span class="conn" title="MCP-server van KBC Momentum">KBC Momentum gekoppeld</span>
+    <span id="whoName"></span>
+    <button id="reset" title="Nieuw gesprek">Nieuw</button>
+    <button id="logout">Afmelden</button>
+  </div>
+</header>
+
+<div id="banner" class="banner" hidden>Geen <code>ANTHROPIC_API_KEY</code> ingesteld: zet die in <code>poc-runner/.env</code> en herstart de chat-container.</div>
+
+<section id="loginView" class="login" hidden>
+  <h2>Welkom terug</h2>
+  <p>Meld aan als klant. Je assistent handelt enkel in jouw naam, via de KBC Momentum-koppeling.</p>
+  <form id="loginForm">
+    <div class="personas">
+      <label><input type="radio" name="u" value="lien" checked />Lien<small>Tom &amp; Lien</small></label>
+      <label><input type="radio" name="u" value="tom" />Tom<small>Tom &amp; Lien</small></label>
+      <label><input type="radio" name="u" value="sarah" />Sarah<small>andere klant</small></label>
+    </div>
+    <input type="password" name="p" placeholder="Demo-wachtwoord" autocomplete="current-password" required />
+    <button type="submit">Aanmelden</button>
+    <div class="error" id="loginError"></div>
+  </form>
+</section>
+
+<main id="chatView" hidden>
+  <div class="log" id="log"></div>
+</main>
+<form class="compose" id="compose" hidden>
+  <div class="box">
+    <textarea id="input" rows="1" placeholder="Stel een vraag…"></textarea>
+    <button class="send" id="send" type="submit" aria-label="Verstuur">↑</button>
+  </div>
+  <div class="note">Je assistent deelt nooit iets met KBC zonder jouw akkoord.</div>
+</form>
+
+<script>
+const KEY = 'eigen-ai.session';
+const $ = (id) => document.getElementById(id);
+let session = null;
+try { session = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch {}
+
+const SUGGESTIES = [
+  'We denken aan een tweede kindje, misschien volgend voorjaar. Waar moeten we allemaal aan denken?',
+  'Wat heeft KBC al voorbereid voor ons?',
+  'Trek het gedeelde moment gezinsuitbreiding maar in.',
+];
+const TOOL_LABEL = {
+  share_life_moment: 'Gedeeld met KBC',
+  get_moment_plan: 'Plan gelezen bij KBC',
+  revoke_moment: 'Ingetrokken bij KBC',
+};
+const MOMENT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'huis kopen', ZAAK_STARTEN: 'zaak starten' };
+
+async function call(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(session ? { 'x-session': session.session } : {}) },
+    body: JSON.stringify(body ?? {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && session) { setSession(null); }
+  if (!res.ok) throw Object.assign(new Error(data.error || 'error'), { status: res.status });
+  return data;
+}
+
+function setSession(s) {
+  session = s;
+  try { s ? sessionStorage.setItem(KEY, JSON.stringify(s)) : sessionStorage.removeItem(KEY); } catch {}
+  render();
+}
+
+function render() {
+  const inChat = Boolean(session);
+  $('loginView').hidden = inChat;
+  $('chatView').hidden = !inChat;
+  $('compose').hidden = !inChat;
+  $('who').hidden = !inChat;
+  if (inChat) {
+    $('whoName').textContent = session.user.sub[0].toUpperCase() + session.user.sub.slice(1);
+    if (!$('log').children.length) showEmpty();
+    $('input').focus();
+  }
+}
+
+function showEmpty() {
+  const log = $('log');
+  log.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'empty';
+  el.innerHTML = '<h2>Waarmee kan ik helpen?</h2><div>Probeer bijvoorbeeld:</div><div class="chips"></div>';
+  for (const s of SUGGESTIES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = s;
+    b.onclick = () => ask(s);
+    el.querySelector('.chips').append(b);
+  }
+  log.append(el);
+}
+
+function add(cls, text) {
+  $('log').querySelector('.empty')?.remove();
+  const el = document.createElement('div');
+  el.className = cls;
+  if (text != null) el.textContent = text;
+  $('log').append(el);
+  $('chatView').scrollTop = $('chatView').scrollHeight;
+  return el;
+}
+
+function addTool(ev) {
+  const el = add('tool' + (ev.isError ? ' err' : ''));
+  const i = ev.input || {};
+  const what = [i.moment && MOMENT[i.moment], i.fase, i.verwachte_maand].filter(Boolean).join(' · ');
+  const head = document.createElement('div');
+  head.innerHTML = '🔗 <b></b> <span></span>';
+  head.querySelector('b').textContent = (ev.isError ? 'Mislukt: ' : '') + (TOOL_LABEL[ev.name] || ev.name);
+  head.querySelector('span').textContent = what ? '— ' + what : '';
+  const det = document.createElement('details');
+  det.innerHTML = '<summary>Antwoord van KBC</summary><pre></pre>';
+  det.querySelector('pre').textContent = ev.result;
+  el.append(head, det);
+}
+
+let busy = false;
+async function ask(text) {
+  if (busy || !text.trim()) return;
+  busy = true;
+  $('send').disabled = true;
+  add('msg user', text);
+  const typing = add('typing', 'Aan het nadenken');
+  try {
+    const { events } = await call('/api/chat', { text });
+    typing.remove();
+    for (const ev of events) ev.type === 'tool' ? addTool(ev) : add('msg ai', ev.text);
+  } catch (e) {
+    typing.remove();
+    const msg = { no_llm: 'Er is geen ANTHROPIC_API_KEY ingesteld voor de chat.', llm_error: 'De AI is even niet bereikbaar. Probeer opnieuw.' }[e.message];
+    if (e.status !== 401) add('msg ai', msg || 'Er ging iets mis. Probeer opnieuw.');
+  } finally {
+    busy = false;
+    $('send').disabled = false;
+    $('input').focus();
+  }
+}
+
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  $('loginError').textContent = '';
+  try {
+    setSession(await call('/api/login', { username: f.get('u'), password: f.get('p') }));
+  } catch (err) {
+    $('loginError').textContent = err.status === 401 ? 'Verkeerd wachtwoord.' : err.status === 429 ? 'Te veel pogingen, wacht een minuut.' : 'Aanmelden mislukt.';
+  }
+};
+$('compose').onsubmit = (e) => { e.preventDefault(); const t = $('input').value; $('input').value = ''; autosize(); ask(t); };
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('compose').requestSubmit(); }
+});
+const autosize = () => { const t = $('input'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+$('input').addEventListener('input', autosize);
+$('logout').onclick = async () => { await call('/api/logout').catch(() => {}); $('log').innerHTML = ''; setSession(null); };
+$('reset').onclick = async () => { await call('/api/reset').catch(() => {}); showEmpty(); };
+
+fetch('/api/status').then((r) => r.json()).then((s) => { $('banner').hidden = s.llm; }).catch(() => {});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# Overrides for the public VM deployment (see deploy/README.md):
+#   docker compose -f docker-compose.yml -f docker-compose.vm.yml up -d
+# Only Caddy is exposed (80/443, HTTPS); every part sits behind the shared-password gate.
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      POC_DOMAIN: ${POC_DOMAIN:?set POC_DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+  gate:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "server.js"]
+    user: node
+    volumes:
+      - ./gate:/app:ro
+    environment:
+      POC_DOMAIN: ${POC_DOMAIN:?set POC_DOMAIN in .env}
+      SITE_PASSWORD: ${SITE_PASSWORD:?set SITE_PASSWORD in .env}
+      GATE_SECRET: ${GATE_SECRET:?set GATE_SECRET in .env}
+    restart: unless-stopped
+
+  # The per-part host ports are only for local use; on the VM everything goes through Caddy
+  backend:
+    ports: !reset []
+    environment:
+      CORS_ORIGINS: https://${POC_DOMAIN}
+  app:
+    ports: !reset []
+  backoffice:
+    ports: !reset []
+  chat:
+    ports: !reset []
+  gateway:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

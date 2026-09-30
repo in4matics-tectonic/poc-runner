@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KBC Momentum PoC</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300aeef'/><path d='M8 22l5-7 4 4 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+<link rel="stylesheet" href="/styles.css" />
+<script src="/config.js"></script>
+</head>
+<body data-mode="overview">
+<header class="top">
+  <a class="brand" href="#overview" title="Overzicht">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M8 22l5-7 4 4 7-9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span><b>KBC Momentum</b> <em>PoC</em></span>
+  </a>
+
+  <nav class="modes" aria-label="Weergave">
+    <a href="#overview" data-mode="overview"><kbd>0</kbd>Overzicht</a>
+    <a href="#app" data-mode="app"><kbd>1</kbd>App</a>
+    <a href="#backoffice" data-mode="backoffice"><kbd>2</kbd>Backoffice</a>
+    <a href="#chat" data-mode="chat"><kbd>3</kbd>Eigen AI</a>
+  </nav>
+
+  <div class="status" aria-label="Status van de diensten">
+    <span class="svc" data-svc="app" title="Mobile app">App</span>
+    <span class="svc" data-svc="backoffice" title="Backoffice">Backoffice</span>
+    <span class="svc" data-svc="chat" title="Chat">Chat</span>
+    <span class="svc" data-svc="mcp" title="MCP-server">MCP</span>
+    <span class="svc" data-svc="backend" title="Backend API">API</span>
+    <a class="docs" id="docsLink" target="_blank" rel="noopener">API docs ↗</a>
+  </div>
+</header>
+
+<main class="stage" id="stage">
+  <section class="panel" data-id="app" style="view-transition-name: p-app">
+    <header class="ph">
+      <span class="dot" data-svc="app"></span>
+      <h2>Mobile app</h2>
+      <span class="who">klant · <code>tom</code> / <code>lien</code></span>
+      <div class="actions">
+        <button data-act="reload" title="Herladen">↻</button>
+        <a data-act="open" target="_blank" rel="noopener" title="Open in nieuw tabblad">↗</a>
+        <button data-act="focus" title="Focus">⤢</button>
+      </div>
+    </header>
+    <div class="pb"><div class="phone"><iframe title="Mobile app" allow="clipboard-write"></iframe></div></div>
+    <button class="catcher" aria-label="Focus op de mobile app"></button>
+  </section>
+
+  <section class="panel" data-id="backoffice" style="view-transition-name: p-backoffice">
+    <header class="ph">
+      <span class="dot" data-svc="backoffice"></span>
+      <h2>Backoffice</h2>
+      <span class="who">adviseur · <code>adviseur</code></span>
+      <div class="actions">
+        <button data-act="reload" title="Herladen">↻</button>
+        <a data-act="open" target="_blank" rel="noopener" title="Open in nieuw tabblad">↗</a>
+        <button data-act="focus" title="Focus">⤢</button>
+      </div>
+    </header>
+    <div class="pb"><div class="screen"><iframe title="Backoffice" allow="clipboard-write"></iframe></div></div>
+    <button class="catcher" aria-label="Focus op de backoffice"></button>
+  </section>
+
+  <section class="panel" data-id="chat" style="view-transition-name: p-chat">
+    <header class="ph">
+      <span class="dot" data-svc="chat"></span>
+      <h2>Eigen AI</h2>
+      <span class="who">klant via MCP · <code>lien</code></span>
+      <div class="actions">
+        <button data-act="reload" title="Herladen">↻</button>
+        <a data-act="open" target="_blank" rel="noopener" title="Open in nieuw tabblad">↗</a>
+        <button data-act="focus" title="Focus">⤢</button>
+      </div>
+    </header>
+    <div class="pb"><div class="screen"><iframe title="Eigen AI chat" allow="clipboard-write"></iframe></div></div>
+    <button class="catcher" aria-label="Focus op de chat"></button>
+  </section>
+
+  <aside class="arch" style="view-transition-name: arch" aria-label="Architectuur">
+    <svg viewBox="0 0 960 118" role="img" aria-label="App, Backoffice en Eigen AI praten met de Backend API; de chat via de MCP-server">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0L10 5L0 10z" fill="var(--wire)"/>
+        </marker>
+      </defs>
+      <g class="node" data-go="app"><rect x="8" y="6" width="190" height="30" rx="8"/><text x="103" y="26">Mobile app · klant</text></g>
+      <g class="node" data-go="backoffice"><rect x="8" y="44" width="190" height="30" rx="8"/><text x="103" y="64">Backoffice · adviseur</text></g>
+      <g class="node" data-go="chat"><rect x="8" y="82" width="190" height="30" rx="8"/><text x="103" y="102">Eigen AI · Claude</text></g>
+      <g class="node infra"><rect x="330" y="82" width="170" height="30" rx="8"/><text x="415" y="102">MCP-server</text></g>
+      <g class="node infra core"><rect x="640" y="30" width="200" height="58" rx="10"/><text x="740" y="55">Backend API</text><text class="sub" x="740" y="73">scores · consent · demo-klok</text></g>
+
+      <path class="wire" d="M198 21 C 420 21, 520 45, 638 50" marker-end="url(#ah)"/>
+      <path class="wire" d="M198 59 H 638" marker-end="url(#ah)"/>
+      <path class="wire" d="M198 97 H 328" marker-end="url(#ah)"/>
+      <path class="wire" d="M500 97 C 580 97, 590 72, 638 70" marker-end="url(#ah)"/>
+      <text class="lbl" x="420" y="16">/v1 · klant-token</text>
+      <text class="lbl" x="420" y="54">/v1 · adviseur-token</text>
+      <text class="lbl" x="264" y="92">tools</text>
+      <text class="lbl" x="560" y="112">/v1 · klant-token</text>
+      <text class="lbl muted" x="900" y="64">in-memory</text>
+    </svg>
+    <p class="story">
+      <b>Demo:</b> meld aan als <code>adviseur</code> in de backoffice en speel de tijdlijn af (<i>Volgende</i>),
+      bevestig als <code>tom</code> in de app, en laat <code>lien</code> via haar eigen AI een moment delen.
+      Wachtwoord: <code>DEMO_PASSWORD</code> uit <code>poc-runner/.env</code>.
+    </p>
+  </aside>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

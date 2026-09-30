@@ -1,0 +1,112 @@
+# KBC Momentum PoC: every project, wired together.
+#
+#   ./run.sh                → builds everything from the GitHub repos (main) and starts it
+#   open http://localhost:7000
+#
+# Sources default to the GitHub repos. Point *_SRC in .env at a local checkout (e.g. ../backend)
+# to build your uncommitted work instead.
+
+name: kbc-momentum
+
+services:
+  # Aggregator API: every other service talks to this. State is in memory.
+  backend:
+    build:
+      context: ${BACKEND_SRC:-https://github.com/in4matics-tectonic/backend.git#main}
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?run ./run.sh or set JWT_SECRET in .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?run ./run.sh or set DEMO_PASSWORD in .env}
+      DEMO_MODE: "true"
+      TRUST_PROXY: "true"
+      # Frontends call the API same-origin through their own nginx; this only matters for /docs and direct calls
+      CORS_ORIGINS: http://localhost:${GATEWAY_PORT:-7000}
+    ports:
+      - "${BACKEND_PORT:-7004}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # MCP server (HTTP mode). It shares the backend's network namespace so it can reach the API on
+  # http://127.0.0.1:3000 (it refuses plain http to anything but localhost). Other containers reach it
+  # at http://backend:3001/mcp.
+  mcp:
+    build:
+      context: ./docker
+      dockerfile: mcp.Dockerfile
+      additional_contexts:
+        src: ${MCP_SRC:-https://github.com/in4matics-tectonic/mcp.git#main}
+    network_mode: "service:backend"
+    environment:
+      MCP_TRANSPORT: http
+      HOST: 0.0.0.0
+      PORT: "3001"
+      KBC_API_URL: http://127.0.0.1:3000
+      ALLOWED_HOSTS: backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Mobile app (Expo, exported for web)
+  app:
+    build:
+      context: ./docker
+      dockerfile: mobile-app.Dockerfile
+      additional_contexts:
+        src: ${APP_SRC:-https://github.com/in4matics-tectonic/mobile-app.git#main}
+    ports:
+      - "${APP_PORT:-7001}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Backoffice for the KBC adviser (Vite + React)
+  backoffice:
+    build:
+      context: ./docker
+      dockerfile: backoffice.Dockerfile
+      additional_contexts:
+        src: ${BACKOFFICE_SRC:-https://github.com/in4matics-tectonic/backoffice.git#main}
+    ports:
+      - "${BACKOFFICE_PORT:-7002}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # The customer's own AI assistant: Claude, with the KBC MCP server as its only tools
+  chat:
+    build: ./chat
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-claude-opus-5-5}
+      CHAT_EFFORT: ${CHAT_EFFORT:-low}
+      KBC_API_URL: http://backend:3000
+      MCP_URL: http://backend:3001/mcp
+    ports:
+      - "${CHAT_PORT:-7003}:3000"
+    depends_on:
+      - mcp
+    restart: unless-stopped
+
+  # The showcase page: all parts side by side, focus one, zoom out
+  gateway:
+    image: nginx:1.29-alpine
+    volumes:
+      - ./gateway/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./gateway/public:/usr/share/nginx/html:ro
+    environment:
+      APP_PORT: ${APP_PORT:-7001}
+      BACKOFFICE_PORT: ${BACKOFFICE_PORT:-7002}
+      CHAT_PORT: ${CHAT_PORT:-7003}
+      BACKEND_PORT: ${BACKEND_PORT:-7004}
+      POC_DOMAIN: ${POC_DOMAIN:-}
+    ports:
+      - "${GATEWAY_PORT:-7000}:80"
+    depends_on:
+      - app
+      - backoffice
+      - chat
+    restart: unless-stopped
