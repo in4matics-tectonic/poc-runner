@@ -58,7 +58,7 @@ Only the backend ships its own `Dockerfile`. The other parts are built with the 
 
 See [.env.example](.env.example): `JWT_SECRET`, `ANTHROPIC_API_KEY`, optional `CHAT_MODEL` (default `claude-opus-5-5`) and `CHAT_EFFORT` (default `low`), `*_SRC` and the host ports (`7000`–`7004`).
 
-State lives in memory. `POST /v1/demo/reset` as `adviseur` (the backoffice reset button) starts the demo over. To wipe everything, recreate both together, because the MCP server lives in the backend's network: `docker compose up -d --force-recreate backend mcp`.
+State lives in memory. The **Reset demo** button on the showcase page puts every part back at the start: it resets the backend (`POST /v1/demo/reset` as `adviseur`: demo clock, signals, consents, audit), clears every chat conversation, and reloads each pane; logins stay. To wipe everything, recreate both together, because the MCP server lives in the backend's network: `docker compose up -d --force-recreate backend mcp`.
 
 ## Deploying
 

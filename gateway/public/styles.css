@@ -64,6 +64,15 @@ a { color: inherit; }
 .svc[data-state="up"]::before, .dot[data-state="up"] { background: var(--ok); box-shadow: 0 0 0 3px rgba(60,207,142,.18); }
 .svc[data-state="down"]::before, .dot[data-state="down"] { background: var(--down); }
 .docs { color: var(--accent); text-decoration: none; border-left: 1px solid var(--line); padding-left: 12px; }
+.reset {
+  font: inherit; color: var(--ink); background: var(--bg-2); cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px;
+  transition: border-color .15s, color .15s;
+}
+.reset:hover { border-color: var(--accent); }
+.reset:disabled { cursor: progress; opacity: .6; }
+.reset[data-state="ok"] { color: var(--ok); border-color: var(--ok); }
+.reset[data-state="error"] { color: var(--down); border-color: var(--down); }
 
 /* ---------- stage ---------- */
 .stage {

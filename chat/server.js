@@ -407,6 +407,14 @@ http
         sessions.set(id, { token: body.token, user: body.user, convos: {}, told: new Set() });
         return send(res, 200, { session: id, user: body.user });
       }
+      // Showcase "Reset": forget every conversation (logins stay), so the demo starts over
+      if (route === 'POST /admin/reset') {
+        for (const s of sessions.values()) {
+          s.convos = {};
+          s.told.clear();
+        }
+        return send(res, 200, { ok: true, sessions: sessions.size });
+      }
       if (route === 'POST /api/logout') {
         sessions.delete(sid);
         return send(res, 200, { ok: true });

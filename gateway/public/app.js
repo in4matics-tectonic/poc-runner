@@ -164,6 +164,41 @@ addEventListener('keydown', (e) => {
 
 show(fromHash());
 
+// ---------- reset ----------
+// Puts every part back at the start: backend demo state (clock, signals, consents, audit) via the
+// adviseur's demo reset, every chat conversation, and a fresh load of each pane. Logins stay.
+const resetBtn = document.getElementById('resetAll');
+const RESET_LABEL = resetBtn.textContent;
+async function post(path, body, token) {
+  const headers = { 'content-type': 'application/json' };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body ?? {}), signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+async function resetAll() {
+  if (!confirm('Alles terugzetten naar de beginstand? De demo-klok, signalen, toestemmingen en alle chats worden gewist.')) return;
+  resetBtn.disabled = true;
+  resetBtn.textContent = 'Resetten…';
+  delete resetBtn.dataset.state;
+  try {
+    const { token } = await post('/reset/login', { username: 'adviseur', password: 'in4matics-must-win' });
+    await post('/reset/backend', null, token);
+    await post('/reset/chat');
+    PARTS.forEach(reload);
+    resetBtn.dataset.state = 'ok';
+    resetBtn.textContent = '✓ Gereset';
+  } catch (e) {
+    console.error('[reset]', e);
+    resetBtn.dataset.state = 'error';
+    resetBtn.textContent = 'Reset mislukt';
+  } finally {
+    resetBtn.disabled = false;
+    setTimeout(() => { resetBtn.textContent = RESET_LABEL; delete resetBtn.dataset.state; }, 2500);
+  }
+}
+resetBtn.onclick = resetAll;
+
 // ---------- service status ----------
 // Probed through the gateway (same origin), so we see real status codes
 const SERVICES = ['app', 'backoffice', 'chat', 'mcp', 'backend'];

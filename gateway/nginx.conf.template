@@ -19,6 +19,11 @@ server {
   location = /status/app        { set $u http://app/;        proxy_pass $u; proxy_connect_timeout 2s; }
   location = /status/backoffice { set $u http://backoffice/; proxy_pass $u; proxy_connect_timeout 2s; }
 
+  # "Reset" button: the page logs in as adviseur and resets the backend's demo state, then clears the chats
+  location = /reset/login   { set $u http://backend:3000/v1/auth/login; proxy_pass $u; proxy_connect_timeout 2s; }
+  location = /reset/backend { set $u http://backend:3000/v1/demo/reset; proxy_pass $u; proxy_connect_timeout 2s; }
+  location = /reset/chat    { set $u http://chat:3000/admin/reset;       proxy_pass $u; proxy_connect_timeout 2s; }
+
   location / {
     add_header Cache-Control no-cache;
     try_files $uri /index.html;
