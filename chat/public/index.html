@@ -112,6 +112,12 @@
   .pills button { background: #fff; border: 1.5px solid var(--accent); color: #0b6fae; border-radius: 99px; padding: 7px 14px; font-size: 14px; cursor: pointer; }
   .pills button:hover:not(:disabled) { background: #eef7fd; }
   .pills button:disabled { opacity: .45; cursor: default; }
+  /* Own AI: quick replies under the answer (share offer, follow-ups) */
+  body:not([data-app="kate"]) .pills { margin: -4px 0 4px; }
+  body:not([data-app="kate"]) .pills button { background: var(--surface); border: 1px solid var(--line); color: var(--ink); font-size: 13px; }
+  body:not([data-app="kate"]) .pills button:first-child { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  body:not([data-app="kate"]) .pills button::before { content: "🔗 "; }
+  body:not([data-app="kate"]) .pills button:hover:not(:disabled) { filter: brightness(.96); }
   .kate-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px; display: grid; gap: 6px; }
   .kate-card .t { font-weight: 600; font-size: 14px; }
   .kate-card .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
@@ -215,9 +221,11 @@ $('loginText').textContent = APP === 'kate'
   ? 'Meld aan als klant om met Kate te praten.'
   : 'Meld aan als klant. Je assistent is gekoppeld aan Kate Studio en deelt enkel iets met jouw akkoord.';
 
+// Each suggestion leads to something the backoffice sees: a shared moment (EIGEN_AI signal) or a revoke
 const SUGGESTIES = [
   'We denken aan een tweede kindje, misschien volgend voorjaar. Waar moeten we allemaal aan denken?',
-  'Wat heeft KBC al voorbereid voor ons?',
+  'We kijken rond naar een groter huis. Hoeveel zouden we kunnen lenen?',
+  'Ik speel met het idee om een eigen zaak te starten. Waar begin ik?',
   'Trek het gedeelde moment gezinsuitbreiding maar in.',
 ];
 const TOOL_LABEL = { share_life_moment: 'Gedeeld met KBC', get_moment_plan: 'Plan gelezen bij KBC', revoke_moment: 'Ingetrokken bij KBC' };
@@ -355,6 +363,9 @@ function addEvent(ev) {
     t.querySelector('b').textContent = (ev.isError ? 'Mislukt: ' : '') + (TOOL_LABEL[ev.name] || ev.name);
     t.querySelector('span').textContent = what ? '— ' + what : '';
     t.querySelector('pre').textContent = ev.result;
+  } else if (ev.type === 'actions') {
+    // Action buttons under every own-AI answer: each one shares or revokes a moment, which the backoffice shows
+    pills(ev.acties.map((a) => a.label), (label) => ask(ev.acties.find((a) => a.label === label).text));
   } else if (ev.type === 'kate-vraag') {
     kateBubbles([ev.text]);
     pills(ev.buttons, (answer) => kateAnswer(ev.moment, answer));

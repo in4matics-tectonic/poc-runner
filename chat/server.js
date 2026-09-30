@@ -27,7 +27,15 @@ const EIGEN_AI =
   () => `Je bent de persoonlijke AI-assistent van de gebruiker (niet van KBC). Je helpt met alledaagse vragen en plannen.
 De gebruiker heeft Kate Studio gekoppeld: via de tools kan je, enkel met uitdrukkelijk akkoord, een levensmoment
 (gezinsuitbreiding, huis kopen, zaak starten) en de fase ervan met KBC delen, lezen wat KBC voorbereidt, of het intrekken.
-- Stel het delen voor wanneer het relevant is, maar vraag altijd eerst akkoord en zeg precies wat gedeeld wordt (enkel moment en fase).
+- Wees proactief: raakt het gesprek aan een van die levensmomenten, help dan eerst kort met de vraag en stel voor om het
+  moment met KBC te delen, zodat Kate in KBC Mobile alles kan klaarzetten. Zeg wat gedeeld wordt (enkel moment en fase).
+- Eindig ELK antwoord met 1 tot 3 actieknoppen, elk op een eigen regel helemaal onderaan, in exact dit formaat:
+  [[delen:MOMENT:fase]] om een moment (of een nieuwe, concretere fase) te delen, of [[intrekken:MOMENT]] om een gedeeld moment in te trekken.
+  MOMENT = GEZINSUITBREIDING, HUIS_KOPEN of ZAAK_STARTEN; fase = orienterend, plannend of beslist. Kies de meest relevante
+  volgende stappen voor dit gesprek. De app toont ze als knoppen; noem de markeringen zelf nooit in je tekst.
+- Een klik op zo'n knop komt binnen als bericht van de gebruiker ("Ja, deel … met KBC." / "Trek … in bij KBC.") en geldt als
+  uitdrukkelijk akkoord: voer de actie dan meteen uit, zonder nog eens te vragen. Zonder zo'n bericht of een duidelijk "ja" deel je niets.
+- Na het delen: geef de nuttige info kort door en zeg dat Kate in KBC Mobile alles klaarzet.
 - Deel nooit het gesprek, gezondheidsdetails of andere persoonlijke inhoud.
 - Vraag bevestiging voor je een moment intrekt.
 - Antwoord in de taal van de gebruiker, kort en warm. Je mag markdown gebruiken (vet, lijstjes, tabellen) waar dat helpt.
@@ -234,11 +242,63 @@ async function chatTurn(session, app, text) {
       );
       c.messages.push({ role: 'user', content: results });
     }
+    if (app !== 'kate') actionButtons(session, c, events);
     c.events.push(...events);
     return events;
   } finally {
     await kit.close();
   }
+}
+
+const FASEN = ['orienterend', 'plannend', 'beslist'];
+const FASE_LABEL = { orienterend: 'we denken erover na', plannend: 'we zijn bezig', beslist: 'het is zeker' };
+const ACTIE = /\[\[(delen|intrekken):(GEZINSUITBREIDING|HUIS_KOPEN|ZAAK_STARTEN)(?::(orienterend|plannend|beslist))?\]\]/g;
+
+const KORT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'huis kopen', ZAAK_STARTEN: 'zaak starten' };
+const deelActie = (moment, fase) => ({
+  label: `Deel met KBC: ${KORT[moment]} · ${FASE_LABEL[fase]}`,
+  text: `Ja, deel "${KORT[moment]}" (${FASE_LABEL[fase]}) met KBC.`,
+});
+const intrekActie = (moment) => ({ label: `Trek in bij KBC: ${KORT[moment]}`, text: `Trek "${KORT[moment]}" in bij KBC.` });
+
+/**
+ * Every own-AI answer ends with action buttons that send a signal to KBC (share or revoke), so the backoffice
+ * visibly reacts. The model picks them with [[delen:MOMENT:fase]] / [[intrekken:MOMENT]]; if it picks none,
+ * we fall back to the next step for the moment in focus. A click is a plain user message, so the model still acts on consent.
+ */
+function actionButtons(session, c, events) {
+  const shared = (session.shared ??= {});
+  for (const e of events) {
+    if (e.type !== 'tool' || e.isError || !MOMENT[e.input?.moment]) continue;
+    if (e.name === 'share_life_moment') shared[e.input.moment] = e.input.fase;
+    if (e.name === 'revoke_moment') delete shared[e.input.moment];
+    c.focus = e.input.moment;
+  }
+
+  const acties = [];
+  for (const e of events) {
+    if (e.type !== 'text') continue;
+    e.text = e.text
+      .replace(ACTIE, (_, soort, moment, fase) => {
+        if (soort === 'intrekken') acties.push(intrekActie(moment));
+        else if (fase) acties.push(deelActie(moment, fase));
+        c.focus ??= moment;
+        return '';
+      })
+      .trim();
+  }
+  events.splice(0, events.length, ...events.filter((e) => e.type !== 'text' || e.text));
+
+  if (acties.length === 0) {
+    const next = (m) => FASEN[FASEN.indexOf(shared[m]) + 1];
+    if (c.focus) {
+      if (next(c.focus)) acties.push(deelActie(c.focus, next(c.focus)));
+      if (shared[c.focus]) acties.push(intrekActie(c.focus));
+    }
+    if (acties.length === 0) for (const m of Object.keys(MOMENT)) if (next(m)) acties.push(deelActie(m, next(m)));
+  }
+  const uniek = [...new Map(acties.map((a) => [a.text, a])).values()].slice(0, 3);
+  if (uniek.length) events.push({ type: 'actions', acties: uniek });
 }
 
 /** A message Kate starts herself; kept in the history so later turns know what she said */
@@ -412,6 +472,7 @@ http
         for (const s of sessions.values()) {
           s.convos = {};
           s.told.clear();
+          s.shared = {};
         }
         return send(res, 200, { ok: true, sessions: sessions.size });
       }
