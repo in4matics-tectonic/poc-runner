@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Starts the whole KBC Momentum PoC. Extra args go to `docker compose up` (e.g. ./run.sh -d).
+# Starts the whole Kate Studio PoC. Extra args go to `docker compose up` (e.g. ./run.sh -d).
 set -e
 cd "$(dirname "$0")"
 

@@ -48,7 +48,7 @@ function limited(ip) {
 const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const page = (next, error = '') => `<!doctype html>
 <html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBC Momentum PoC</title>
+<title>Kate Studio PoC</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0a1426; color: #e8eef8;
@@ -62,7 +62,7 @@ const page = (next, error = '') => `<!doctype html>
   .err { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 1em; }
 </style></head>
 <body><form method="post" action="https://${DOMAIN}/__login">
-  <h1>KBC Momentum PoC</h1><p>Voer het wachtwoord in om de demo te bekijken.</p>
+  <h1>Kate Studio PoC</h1><p>Voer het wachtwoord in om de demo te bekijken.</p>
   <input type="hidden" name="next" value="${esc(next)}">
   <input type="password" name="password" placeholder="Wachtwoord" autofocus required autocomplete="current-password">
   <button>Doorgaan</button><div class="err">${esc(error)}</div>

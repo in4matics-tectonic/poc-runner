@@ -51,7 +51,7 @@ set_env POC_DOMAIN "$POC_DOMAIN"
 # --- Auto-deploy timer ----------------------------------------------------------------------------
 cat >/etc/systemd/system/poc-autodeploy.service <<EOF
 [Unit]
-Description=KBC Momentum PoC: deploy what changed on GitHub
+Description=Kate Studio PoC: deploy what changed on GitHub
 After=docker.service network-online.target
 Wants=network-online.target
 
@@ -63,7 +63,7 @@ EOF
 
 cat >/etc/systemd/system/poc-autodeploy.timer <<'EOF'
 [Unit]
-Description=KBC Momentum PoC: check GitHub for changes every 2 minutes
+Description=Kate Studio PoC: check GitHub for changes every 2 minutes
 
 [Timer]
 OnBootSec=30s

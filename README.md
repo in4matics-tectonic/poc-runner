@@ -1,6 +1,6 @@
-# KBC Momentum – PoC runner
+# Kate Studio – PoC runner
 
-Starts the whole KBC Momentum PoC with one command and shows it on one page: the **mobile app**, the **backoffice** and the customer's **own AI (chat)** side by side, with a focus view per part and a zoomed-out overview that includes the architecture.
+Starts the whole Kate Studio PoC with one command and shows it on one page: the **mobile app**, the **backoffice** and the customer's **own AI (chat)** side by side, with a focus view per part and a zoomed-out overview that includes the architecture.
 
 ```bash
 ./run.sh          # first run creates .env with random secrets, then docker compose up --build

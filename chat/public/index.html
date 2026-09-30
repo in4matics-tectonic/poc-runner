@@ -213,7 +213,7 @@ $('note').textContent = S.note;
 $('loginTitle').textContent = APP === 'kate' ? 'KBC Mobile' : `Aanmelden bij ${S.title}`;
 $('loginText').textContent = APP === 'kate'
   ? 'Meld aan als klant om met Kate te praten.'
-  : 'Meld aan als klant. Je assistent is gekoppeld aan KBC Momentum en deelt enkel iets met jouw akkoord.';
+  : 'Meld aan als klant. Je assistent is gekoppeld aan Kate Studio en deelt enkel iets met jouw akkoord.';
 
 const SUGGESTIES = [
   'We denken aan een tweede kindje, misschien volgend voorjaar. Waar moeten we allemaal aan denken?',
@@ -243,7 +243,7 @@ function renderHeader() {
       ? `<div class="claude-logo">✦</div>Claude`
       : `${S.title} <span class="caret">⌄</span>`;
     bar.innerHTML = `<div class="brand">${brand}</div><div class="tools">
-      <span class="chip-conn" title="MCP-server van KBC Momentum">KBC Momentum</span>
+      <span class="chip-conn" title="MCP-server van Kate Studio">Kate Studio</span>
       <button class="ghost" id="hReset">Nieuw</button><button class="ghost" id="hLogout">Afmelden</button>
       <div class="avatar" id="hAvatar"></div></div>`;
     $('hAvatar').textContent = name().slice(0, 1);

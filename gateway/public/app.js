@@ -1,4 +1,4 @@
-// KBC Momentum PoC showcase: the three parts side by side, focus one, zoom back out.
+// Kate Studio PoC showcase: the three parts side by side, focus one, zoom back out.
 // The iframes are never moved in the DOM (that would reload them); only the grid placement changes,
 // so every part keeps its state (login, scroll, chat) while you switch.
 
@@ -118,7 +118,7 @@ function apply(mode) {
     // Thumbnails are for looking, not typing: keep them out of the tab order
     p.querySelector('iframe').tabIndex = inRail ? -1 : 0;
   }
-  document.title = mode === 'overview' ? 'KBC Momentum PoC' : `${panels[mode].querySelector('h2').textContent} · KBC Momentum PoC`;
+  document.title = mode === 'overview' ? 'Kate Studio PoC' : `${panels[mode].querySelector('h2').textContent} · Kate Studio PoC`;
   PARTS.forEach(fit);
 }
 

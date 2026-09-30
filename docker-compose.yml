@@ -1,4 +1,4 @@
-# KBC Momentum PoC: every project, wired together.
+# Kate Studio PoC: every project, wired together.
 #
 #   ./run.sh                → builds everything from the GitHub repos (main) and starts it
 #   open http://localhost:7000

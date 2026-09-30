@@ -19,7 +19,8 @@ services:
   gate:
     image: node:22-alpine
     working_dir: /app
-    command: ["node", "server.js"]
+    # --watch: restarts when gate/server.js changes (it is mounted, not built into an image)
+    command: ["node", "--watch", "server.js"]
     user: node
     volumes:
       - ./gate:/app:ro
