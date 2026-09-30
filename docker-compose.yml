@@ -15,7 +15,8 @@ services:
       context: ${BACKEND_SRC:-https://github.com/in4matics-tectonic/backend.git#main}
     environment:
       JWT_SECRET: ${JWT_SECRET:?run ./run.sh or set JWT_SECRET in .env}
-      DEMO_PASSWORD: ${DEMO_PASSWORD:?run ./run.sh or set DEMO_PASSWORD in .env}
+      # Hardcoded for the hackathon: every demo user (tom, lien, sarah, adviseur) logs in with this
+      DEMO_PASSWORD: in4matics-must-win
       DEMO_MODE: "true"
       TRUST_PROXY: "true"
       # Frontends call the API same-origin through their own nginx; this only matters for /docs and direct calls

@@ -37,7 +37,6 @@ get_env() { grep "^$1=" .env | cut -d= -f2- || true; }
 random() { head -c "$1" /dev/urandom | base64 | tr -d '/+=\n'; }
 
 [ -n "$(get_env JWT_SECRET)" ] || set_env JWT_SECRET "$(random 48)"
-[ -n "$(get_env DEMO_PASSWORD)" ] || set_env DEMO_PASSWORD "$(random 12)"
 [ -n "$(get_env GATE_SECRET)" ] || set_env GATE_SECRET "$(random 48)"
 [ -n "${SITE_PASSWORD:-}" ] && set_env SITE_PASSWORD "$SITE_PASSWORD"
 [ -n "${ANTHROPIC_API_KEY:-}" ] && set_env ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
@@ -85,5 +84,5 @@ systemctl start poc-autodeploy.service || true
 
 echo
 echo "  https://$POC_DOMAIN"
-echo "  site password: the SITE_PASSWORD you set · demo users' password: $(get_env DEMO_PASSWORD)"
+echo "  site password: the SITE_PASSWORD you set · demo users' password: in4matics-must-win"
 echo "  logs: journalctl -u poc-autodeploy -f"

@@ -32,7 +32,7 @@ Shortcuts work when the showcase page has focus (not while you're typing inside 
 - The MCP server shares the backend's network namespace. It only allows plain http to `localhost`, and this way it reaches the API on `http://127.0.0.1:3000` without changes to the mcp repo.
 - The chat is the "eigen AI" from the tech doc: a customer logs in (`lien`, `tom`, `sarah`), and Claude can use exactly the three KBC MCP tools with that customer's token. The token stays on the chat server and never reaches the browser. It needs `ANTHROPIC_API_KEY` in `.env`. Without a key, the chat shows a notice and the rest still works.
 
-Demo users and the flow are in the [backend README](https://github.com/in4matics-tectonic/backend#demo-flow). They all share `DEMO_PASSWORD` from `.env`, and `run.sh` prints it.
+Demo users and the flow are in the [backend README](https://github.com/in4matics-tectonic/backend#demo-flow). They all use the password `in4matics-must-win` (set in `docker-compose.yml`).
 
 ## Sources: GitHub or local
 
@@ -53,7 +53,7 @@ Only the backend ships its own `Dockerfile`. The other parts are built with the 
 
 ## Configuration (`.env`)
 
-See [.env.example](.env.example): `JWT_SECRET`, `DEMO_PASSWORD`, `ANTHROPIC_API_KEY`, optional `CHAT_MODEL` (default `claude-opus-5-5`) and `CHAT_EFFORT` (default `low`), `*_SRC` and the host ports (`7000`–`7004`).
+See [.env.example](.env.example): `JWT_SECRET`, `ANTHROPIC_API_KEY`, optional `CHAT_MODEL` (default `claude-opus-5-5`) and `CHAT_EFFORT` (default `low`), `*_SRC` and the host ports (`7000`–`7004`).
 
 State lives in memory. `POST /v1/demo/reset` as `adviseur` (the backoffice reset button) starts the demo over. To wipe everything, recreate both together, because the MCP server lives in the backend's network: `docker compose up -d --force-recreate backend mcp`.
 

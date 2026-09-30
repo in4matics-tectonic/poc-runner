@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/in4matics-tectonic/poc-runner/main/
   | sudo env SITE_PASSWORD='<site password>' ANTHROPIC_API_KEY='sk-ant-…' bash
 ```
 
-This installs Docker, clones this repo to `/opt/poc-runner`, writes `.env` (random `JWT_SECRET`, `DEMO_PASSWORD` and `GATE_SECRET`), enables the timer and runs the first deploy. At the end it prints the URL and the demo users' password. The first build takes about 5–10 minutes.
+This installs Docker, clones this repo to `/opt/poc-runner`, writes `.env` (random `JWT_SECRET` and `GATE_SECRET`), enables the timer and runs the first deploy. At the end it prints the URL. The demo users' password is `in4matics-must-win`. The first build takes about 5–10 minutes.
 
 ## Day to day
 
