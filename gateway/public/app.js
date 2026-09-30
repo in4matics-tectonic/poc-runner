@@ -21,8 +21,9 @@ const CHAT_APPS = {
   claude: { title: 'Eigen AI', phone: false },
   kate: { title: 'Kate · KBC Mobile', phone: true },
 };
-let chatApp = 'chatgpt';
-try { if (CHAT_APPS[localStorage.getItem('poc.chatApp')]) chatApp = localStorage.getItem('poc.chatApp'); } catch {}
+let chatApp = 'kate';
+// (key v2: everyone starts on Kate, the new default, once)
+try { if (CHAT_APPS[localStorage.getItem('poc.chatApp.v2')]) chatApp = localStorage.getItem('poc.chatApp.v2'); } catch {}
 const MODES = ['overview', ...PARTS];
 // Width each part is designed for; smaller slots scale the page down instead of reflowing it
 const DESIGN_WIDTH = { backoffice: 1280, chat: 720 };
@@ -61,7 +62,7 @@ function reload(id) {
 
 function setChatApp(app) {
   chatApp = app;
-  try { localStorage.setItem('poc.chatApp', app); } catch {}
+  try { localStorage.setItem('poc.chatApp.v2', app); } catch {}
   const p = panels.chat;
   p.querySelector('#chatTitle').textContent = CHAT_APPS[app].title;
   for (const b of p.querySelectorAll('.apps button')) b.setAttribute('aria-pressed', String(b.dataset.app === app));

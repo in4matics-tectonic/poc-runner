@@ -160,7 +160,7 @@
   .switcher a[aria-current] { background: #0d0d0d; color: #fff; }
 </style>
 </head>
-<body data-app="chatgpt">
+<body data-app="kate">
 <header class="bar" id="bar"></header>
 <div id="banner" class="banner hidden">Geen <code>ANTHROPIC_API_KEY</code> ingesteld: zet die in <code>poc-runner/.env</code> en herstart de chat-container.</div>
 
@@ -173,7 +173,8 @@
       <label><input type="radio" name="u" value="tom" />Tom<small>Tom &amp; Lien</small></label>
       <label><input type="radio" name="u" value="sarah" />Sarah<small>andere klant</small></label>
     </div>
-    <input type="password" name="p" placeholder="Demo-wachtwoord" autocomplete="current-password" required />
+    <!-- Hardcoded for the hackathon: the demo password, so visitors only have to click -->
+    <input type="password" name="p" placeholder="Demo-wachtwoord" value="in4matics-must-win" autocomplete="off" required />
     <button type="submit">Aanmelden</button>
     <div class="error" id="loginError"></div>
   </form>
@@ -192,7 +193,7 @@
 const $ = (id) => document.getElementById(id);
 const APPS = ['chatgpt', 'gemini', 'claude', 'kate'];
 const params = new URLSearchParams(location.search);
-const APP = APPS.includes(params.get('app')) ? params.get('app') : 'chatgpt';
+const APP = APPS.includes(params.get('app')) ? params.get('app') : 'kate';
 document.body.dataset.app = APP;
 const KEY = 'poc-chat.session';
 
