@@ -2,7 +2,7 @@
 # One-time setup of the PoC on a Debian/Ubuntu VM. Safe to run again (e.g. to change a secret).
 #
 #   curl -fsSL https://raw.githubusercontent.com/in4matics-tectonic/poc-runner/main/deploy/bootstrap.sh \
-#     | sudo env SITE_PASSWORD='…' ANTHROPIC_API_KEY='…' bash
+#     | sudo env ANTHROPIC_API_KEY='…' bash
 #
 # Optional: POC_DOMAIN (default: <external-ip>.sslip.io), INSTALL_DIR (default: /opt/poc-runner).
 set -euo pipefail
@@ -38,9 +38,7 @@ random() { head -c "$1" /dev/urandom | base64 | tr -d '/+=\n'; }
 
 [ -n "$(get_env JWT_SECRET)" ] || set_env JWT_SECRET "$(random 48)"
 [ -n "$(get_env GATE_SECRET)" ] || set_env GATE_SECRET "$(random 48)"
-[ -n "${SITE_PASSWORD:-}" ] && set_env SITE_PASSWORD "$SITE_PASSWORD"
 [ -n "${ANTHROPIC_API_KEY:-}" ] && set_env ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
-[ -n "$(get_env SITE_PASSWORD)" ] || { echo "SITE_PASSWORD is required on the first run"; exit 1; }
 
 if [ -z "${POC_DOMAIN:-}" ]; then
   ip=$(curl -fsS -H 'Metadata-Flavor: Google' \
@@ -84,5 +82,5 @@ systemctl start poc-autodeploy.service || true
 
 echo
 echo "  https://$POC_DOMAIN"
-echo "  site password: the SITE_PASSWORD you set · demo users' password: in4matics-must-win"
+echo "  site password and demo users' password: in4matics-must-win"
 echo "  logs: journalctl -u poc-autodeploy -f"

@@ -25,7 +25,8 @@ services:
       - ./gate:/app:ro
     environment:
       POC_DOMAIN: ${POC_DOMAIN:?set POC_DOMAIN in .env}
-      SITE_PASSWORD: ${SITE_PASSWORD:?set SITE_PASSWORD in .env}
+      # Hardcoded for the hackathon
+      SITE_PASSWORD: in4matics-must-win
       GATE_SECRET: ${GATE_SECRET:?set GATE_SECRET in .env}
     restart: unless-stopped
 

@@ -3,7 +3,7 @@
 The VM runs the same compose stack with [docker-compose.vm.yml](../docker-compose.vm.yml) on top of it:
 
 - **Caddy** serves HTTPS on 80/443 with certificates from Let's Encrypt (ZeroSSL as fallback): the showcase on `https://<domain>`, and the parts on `app.`, `backoffice.`, `chat.` and `api.<domain>`.
-- **Gate:** one shared password (`SITE_PASSWORD`) protects every host. Logging in once sets a cookie for the base domain that's valid for 30 days.
+- **Gate:** one shared password (`in4matics-must-win`, hardcoded in `docker-compose.vm.yml`) protects every host. Logging in once sets a cookie for the base domain that's valid for 30 days.
 - **No domain needed:** the default is `<external-ip-with-dashes>.sslip.io`, a public wildcard DNS name that resolves to the IP inside it.
 - **Auto-deploy:** a systemd timer runs [autodeploy.sh](autodeploy.sh) every 2 minutes. When `poc-runner` changes, it pulls and rebuilds everything. When `main` of backend, mcp, mobile-app or backoffice moves on, it rebuilds only that service at that exact commit. A failed build leaves the running version up. There are no GitHub secrets or webhooks: the repos are public, so the VM only reads them.
 
@@ -30,7 +30,7 @@ gcloud compute addresses create kbc-poc-ip --region us-east1 --addresses "$IP"
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/in4matics-tectonic/poc-runner/main/deploy/bootstrap.sh \
-  | sudo env SITE_PASSWORD='<site password>' ANTHROPIC_API_KEY='sk-ant-…' bash
+  | sudo env ANTHROPIC_API_KEY='sk-ant-…' bash
 ```
 
 This installs Docker, clones this repo to `/opt/poc-runner`, writes `.env` (random `JWT_SECRET` and `GATE_SECRET`), enables the timer and runs the first deploy. At the end it prints the URL. The demo users' password is `in4matics-must-win`. The first build takes about 5–10 minutes.
