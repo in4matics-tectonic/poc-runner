@@ -30,7 +30,10 @@ Shortcuts work when the showcase page has focus (not while you're typing inside 
 
 - The app and the backoffice are served by nginx, which also proxies `/v1` to the backend. The browser stays same-origin, so there's no CORS and no API URL in the bundles.
 - The MCP server shares the backend's network namespace. It only allows plain http to `localhost`, and this way it reaches the API on `http://127.0.0.1:3000` without changes to the mcp repo.
-- The chat is the "eigen AI" from the tech doc: a customer logs in (`lien`, `tom`, `sarah`), and Claude can use exactly the three KBC MCP tools with that customer's token. The token stays on the chat server and never reaches the browser. It needs `ANTHROPIC_API_KEY` in `.env`. Without a key, the chat shows a notice and the rest still works.
+- The chat pane switches between apps with the buttons in its header (also `?app=` on the chat URL):
+  - **ChatGPT, Gemini, Claude**: the customer's own AI from the tech doc. Claude does the talking behind all three looks, and it can use exactly the three KBC MCP tools with the logged-in customer's token.
+  - **Kate**: the assistant in KBC Mobile. She talks to the backend directly, asks "Klopt dit?" by herself once the demo clock gets a moment to phase `vragen` (with *Ja, klopt / Niet voor ons / Later*), and shows the plan as action cards once it reaches `voorstel`.
+  - Tokens stay on the chat server and never reach the browser. It needs `ANTHROPIC_API_KEY`; without it Kate still asks and shows the plan with fixed texts, but free-text chat is off. Answers are rendered as markdown (sanitized).
 
 Demo users and the flow are in the [backend README](https://github.com/in4matics-tectonic/backend#demo-flow). They all use the password `in4matics-must-win` (set in `docker-compose.yml`).
 

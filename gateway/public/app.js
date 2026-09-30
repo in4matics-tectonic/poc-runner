@@ -13,6 +13,16 @@ const url = (svc) =>
     : `${location.protocol === 'https:' ? 'https' : 'http'}://${host}:${PORTS[svc]}`;
 
 const PARTS = ['app', 'backoffice', 'chat'];
+const NAMES = { app: 'de app', backoffice: 'de backoffice', chat: 'de chat' };
+// The chat pane switches between the customer's own AI (via MCP) and Kate in KBC Mobile
+const CHAT_APPS = {
+  chatgpt: { title: 'Eigen AI', phone: false },
+  gemini: { title: 'Eigen AI', phone: false },
+  claude: { title: 'Eigen AI', phone: false },
+  kate: { title: 'Kate · KBC Mobile', phone: true },
+};
+let chatApp = 'chatgpt';
+try { if (CHAT_APPS[localStorage.getItem('poc.chatApp')]) chatApp = localStorage.getItem('poc.chatApp'); } catch {}
 const MODES = ['overview', ...PARTS];
 // Width each part is designed for; smaller slots scale the page down instead of reflowing it
 const DESIGN_WIDTH = { backoffice: 1280, chat: 720 };
@@ -21,10 +31,24 @@ const PHONE = { w: 410, h: 864 };
 const panels = Object.fromEntries(PARTS.map((id) => [id, document.querySelector(`.panel[data-id="${id}"]`)]));
 
 // ---------- iframes ----------
+const pageUrl = (id) => (id === 'chat' ? `${url('chat')}/?app=${chatApp}` : url(id));
+
+function load(id, bust = false) {
+  const p = panels[id];
+  p.classList.add('loading');
+  p.querySelector('iframe').src = pageUrl(id) + (bust ? `${id === 'chat' ? '&' : '/?'}t=${Date.now()}` : '');
+  p.querySelector('[data-act="open"]').href = pageUrl(id);
+}
+
 for (const id of PARTS) {
   const p = panels[id];
-  p.querySelector('iframe').src = url(id);
-  p.querySelector('[data-act="open"]').href = url(id);
+  const loader = document.createElement('div');
+  loader.className = 'loader';
+  loader.innerHTML = '<span class="spin"></span><span class="lt"></span>';
+  loader.querySelector('.lt').textContent = `${NAMES[id][0].toUpperCase()}${NAMES[id].slice(1)} laden…`;
+  p.querySelector('.pb').append(loader);
+  p.querySelector('iframe').addEventListener('load', () => p.classList.remove('loading'));
+  if (id !== 'chat') load(id); // the chat is loaded by setChatApp below
   p.querySelector('[data-act="reload"]').onclick = () => reload(id);
   p.querySelector('[data-act="focus"]').onclick = () => go(id);
   p.querySelector('.catcher').onclick = () => go(id);
@@ -32,9 +56,24 @@ for (const id of PARTS) {
 document.getElementById('docsLink').href = `${url('backend')}/docs`;
 
 function reload(id) {
-  const f = panels[id].querySelector('iframe');
-  f.src = url(id) + '/?t=' + Date.now();
+  load(id, true);
 }
+
+function setChatApp(app) {
+  chatApp = app;
+  try { localStorage.setItem('poc.chatApp', app); } catch {}
+  const p = panels.chat;
+  p.querySelector('#chatTitle').textContent = CHAT_APPS[app].title;
+  for (const b of p.querySelectorAll('.apps button')) b.setAttribute('aria-pressed', String(b.dataset.app === app));
+  // Kate lives in the phone; the own-AI apps are desktop pages
+  const frame = p.querySelector('.pb > div');
+  frame.className = CHAT_APPS[app].phone ? 'phone' : 'screen';
+  frame.removeAttribute('style');
+  load('chat');
+  fit('chat');
+}
+for (const b of panels.chat.querySelectorAll('.apps button')) b.onclick = () => b.dataset.app !== chatApp && setChatApp(b.dataset.app);
+setChatApp(chatApp);
 
 // ---------- fit each page into its slot ----------
 function fit(id) {
@@ -42,9 +81,10 @@ function fit(id) {
   const w = body.clientWidth;
   const h = body.clientHeight;
   if (!w || !h) return;
-  if (id === 'app') {
+  const phone = body.querySelector('.phone');
+  if (phone) {
     const s = Math.min((w - 24) / PHONE.w, (h - 24) / PHONE.h, 1);
-    const el = body.querySelector('.phone');
+    const el = phone;
     el.style.transform = `translate(${(w - PHONE.w * s) / 2}px, ${(h - PHONE.h * s) / 2}px) scale(${s})`;
     return;
   }
@@ -138,6 +178,11 @@ async function check(svc) {
     el.title = `${svc}: ${state === 'up' ? 'draait' : 'niet bereikbaar'}`;
   }
   // A part that came up after the page loaded showed an error page: load it for real now
+  if (PARTS.includes(svc)) {
+    panels[svc].querySelector('.lt').textContent =
+      state === 'up' ? `${NAMES[svc][0].toUpperCase()}${NAMES[svc].slice(1)} laden…` : `Wachten tot ${NAMES[svc]} opstart…`;
+    if (state === 'down') panels[svc].classList.add('loading');
+  }
   if (lastState[svc] === 'down' && state === 'up' && PARTS.includes(svc)) reload(svc);
   lastState[svc] = state;
 }

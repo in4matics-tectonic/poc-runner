@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
-    "@modelcontextprotocol/sdk": "^1.31.0"
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "dompurify": "^3.4.16",
+    "marked": "^18.0.14"
   }
 }

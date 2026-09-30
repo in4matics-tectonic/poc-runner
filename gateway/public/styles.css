@@ -125,6 +125,30 @@ body:not([data-mode="overview"]) .arch { display: none; }
 }
 .phone iframe { width: 390px; height: 844px; border: 0; border-radius: 44px; display: block; background: #fff; }
 
+/* App switcher in the chat pane's header */
+.panel[data-id="chat"] .ph { flex-wrap: wrap; row-gap: 6px; padding-bottom: 7px; }
+.apps { order: 1; flex: 1 0 100%; display: flex; gap: 2px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.apps button { flex: 1; border: 0; background: none; color: var(--muted); font: 500 12px/1 inherit; font-family: inherit; padding: 6px 4px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.apps button:hover { color: var(--ink); }
+.apps button[aria-pressed="true"] { background: var(--accent); color: #04121f; }
+.panel.in-rail .apps { display: none; }
+
+/* Loader: until a page has loaded, show a spinner on the panel instead of a white box */
+.loader {
+  position: absolute; inset: 0; z-index: 1;
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  color: var(--muted); font-size: 12.5px; pointer-events: none;
+}
+.panel.loading .loader { display: flex; }
+.panel.loading iframe { visibility: hidden; }
+.spin {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 3px solid rgba(0,174,239,.18); border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+
 /* In the rail a panel is a live thumbnail: clicking anywhere focuses it */
 .catcher { display: none; }
 .panel.in-rail .catcher {
@@ -153,6 +177,7 @@ body:not([data-mode="overview"]) .arch { display: none; }
 .arch .wire { fill: none; stroke: var(--wire); stroke-width: 1.5; stroke-dasharray: 5 5; animation: flow 1.2s linear infinite; }
 .arch .lbl { fill: var(--muted); font-size: 11px; text-anchor: middle; }
 .arch .muted { opacity: .7; }
+.arch .wire.kate { stroke: var(--accent); opacity: .7; }
 @keyframes flow { to { stroke-dashoffset: -10; } }
 .story { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 460px; }
 .story b { color: var(--ink); }

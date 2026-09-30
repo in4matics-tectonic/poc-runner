@@ -4,37 +4,82 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="referrer" content="no-referrer" />
-<title>Eigen AI</title>
+<script src="/vendor/marked.js"></script>
+<script src="/vendor/purify.js"></script>
+<title>Chat</title>
 <style>
-  :root {
-    --bg: #f7f5f1; --surface: #ffffff; --ink: #1d1b18; --muted: #6f6a62; --line: #e7e2d9;
-    --accent: #c96442; --accent-ink: #fff; --user: #efe9df; --tool: #eef6fb; --tool-line: #bfdcee; --tool-ink: #0b4f79;
-    --err: #b3261e;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #1c1b19; --surface: #262522; --ink: #ece8e1; --muted: #a39d93; --line: #3a3834;
-      --user: #34312c; --tool: #1c2d38; --tool-line: #2e5470; --tool-ink: #9fd2f2; }
-  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--ink); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
-  .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; color: #fff; font-weight: 700; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
-  header .who { margin-left: auto; color: var(--muted); font-size: 13px; display: flex; gap: 10px; align-items: center; }
-  header button { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
-  .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--tool); color: var(--tool-ink); border: 1px solid var(--tool-line); }
-  .conn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2e9d5b; }
+  body {
+    --bg: #fff; --ink: #0d0d0d; --muted: #6b6b6b; --line: #e5e5e5; --surface: #fff;
+    --user-bg: #f4f4f4; --user-ink: var(--ink); --accent: #0d0d0d; --accent-ink: #fff;
+    --tool: #f3f8fd; --tool-line: #cfe3f5; --tool-ink: #0b5394; --err: #b3261e;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font);
+    display: flex; flex-direction: column; color-scheme: light;
+  }
+  body[data-app="gemini"] { --ink: #1f1f1f; --muted: #5f6368; --user-bg: #e9eef6; --surface: #f0f4f9; --accent: #0b57d0; }
+  body[data-app="claude"] { --bg: #f7f5f1; --ink: #1d1b18; --muted: #6f6a62; --line: #e7e2d9; --surface: #fff;
+    --user-bg: #efe9df; --accent: #c96442; --font: ui-serif, Georgia, "Times New Roman", serif; }
+  body[data-app="kate"] { --ink: #1c2b39; --muted: #6d7b88; --line: #e3e9ee; --user-bg: #0f8ad0; --user-ink: #fff;
+    --accent: #1e9ad6; --kate-bubble: #edf1f5; --font: -apple-system, "SF Pro Text", "Helvetica Neue", Roboto, sans-serif; }
 
+  button { font: inherit; }
+  .hidden { display: none !important; }
+
+  /* ---------- header ---------- */
+  header.bar { display: flex; align-items: center; gap: 10px; padding: 12px 18px; min-height: 56px; }
+  .brand { font-weight: 600; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .brand .caret { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .chip-conn { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--font); padding: 3px 10px; border-radius: 99px;
+    background: var(--tool); color: var(--tool-ink); border: 1px solid var(--tool-line); white-space: nowrap; }
+  .chip-conn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2e9d5b; }
+  .ghost { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600;
+    background: #7b61ff; color: #fff; }
+  body[data-app="gemini"] .avatar { background: #0b57d0; }
+  body[data-app="claude"] header.bar { border-bottom: 1px solid var(--line); background: var(--surface); }
+  .claude-logo { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 15px; }
+
+  /* Kate: the KBC Mobile header */
+  body[data-app="kate"] header.bar { justify-content: space-between; border-bottom: 1px solid var(--line); padding: 10px 14px; }
+  body[data-app="kate"] .brand { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; }
+  .icon-btn { background: none; border: 0; color: var(--accent); font-size: 22px; line-height: 1; width: 36px; height: 36px; cursor: pointer; border-radius: 50%; }
+  .icon-btn:hover { background: #eef6fc; }
+
+  /* ---------- log ---------- */
   main { flex: 1; overflow-y: auto; }
-  .log { max-width: 720px; margin: 0 auto; padding: 24px 20px 12px; display: flex; flex-direction: column; gap: 14px; }
+  .log { max-width: 760px; margin: 0 auto; padding: 16px 20px 12px; display: flex; flex-direction: column; gap: 14px; }
   .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.user { align-self: flex-end; background: var(--user); padding: 10px 14px; border-radius: 16px 16px 4px 16px; max-width: 85%; }
+  .msg.ai, .kate-bubble { white-space: normal; }
+  /* Markdown inside bot answers */
+  .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+  .md p { margin: 0 0 .6em; }
+  .md ul, .md ol { margin: .2em 0 .7em; padding-left: 1.3em; }
+  .md li { margin: .15em 0; }
+  .md h1, .md h2, .md h3, .md h4 { font-size: 1.05em; margin: .9em 0 .35em; line-height: 1.3; }
+  .md h1 { font-size: 1.2em; }
+  .md a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .md code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(0,0,0,.06); padding: .1em .35em; border-radius: 5px; }
+  .md pre { background: rgba(0,0,0,.05); padding: 10px 12px; border-radius: 10px; overflow-x: auto; }
+  .md pre code { background: none; padding: 0; }
+  .md blockquote { margin: .4em 0; padding-left: .8em; border-left: 3px solid var(--line); color: var(--muted); }
+  .md table { border-collapse: collapse; margin: .4em 0 .8em; font-size: .92em; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; }
+  .md th { background: rgba(0,0,0,.03); }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: .8em 0; }
+  .msg.user { align-self: flex-end; background: var(--user-bg); color: var(--user-ink); padding: 9px 15px; border-radius: 20px; max-width: 80%; }
   .msg.ai { align-self: flex-start; max-width: 100%; }
-  .tool { align-self: flex-start; border: 1px solid var(--tool-line); background: var(--tool); color: var(--tool-ink); border-radius: 12px; padding: 10px 12px; font-size: 13px; max-width: 100%; }
+  body[data-app="gemini"] .msg.user { border-radius: 24px 4px 24px 24px; }
+  body[data-app="gemini"] .msg.ai { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+  body[data-app="gemini"] .msg.ai::before { content: "✦"; font-size: 20px; line-height: 1.2;
+    background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  body[data-app="claude"] .msg.user { border-radius: 16px 16px 4px 16px; }
+
+  .tool { align-self: flex-start; border: 1px solid var(--tool-line); background: var(--tool); color: var(--tool-ink);
+    border-radius: 12px; padding: 10px 12px; font: 13px/1.45 var(--font); max-width: 100%; }
   .tool.err { border-color: var(--err); color: var(--err); background: transparent; }
-  .tool b { font-weight: 600; }
   .tool details { margin-top: 6px; }
   .tool summary { cursor: pointer; color: var(--muted); font-size: 12px; }
   .tool pre { margin: 6px 0 0; font-size: 12px; white-space: pre-wrap; max-height: 220px; overflow: auto; color: var(--ink); }
@@ -42,21 +87,60 @@
   .typing::after { content: "…"; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: .2; } }
 
-  .empty { text-align: center; color: var(--muted); margin-top: 8vh; }
-  .empty h2 { color: var(--ink); font-weight: 600; font-size: 22px; margin: 0 0 6px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
-  .chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 13px; cursor: pointer; }
-  .chips button:hover { border-color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); margin-top: 10vh; }
+  .empty h2 { color: var(--ink); font-weight: 500; font-size: 26px; margin: 0 0 8px; }
+  body[data-app="gemini"] .empty { text-align: left; }
+  body[data-app="gemini"] .empty h2 { font-size: 34px; background: linear-gradient(74deg, #4285f4 0, #9b72cb 9%, #d96570 20%, #d96570 24%, #9b72cb 35%, #4285f4 44%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  body[data-app="gemini"] .empty .sub { font-size: 26px; color: #c4c7c5; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+  body[data-app="gemini"] .chips { justify-content: flex-start; }
+  .chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 99px; padding: 8px 14px; font-size: 13px; cursor: pointer; text-align: left; }
+  body[data-app="gemini"] .chips button { border-radius: 12px; border: 0; background: var(--surface); }
 
-  form.compose { max-width: 720px; width: 100%; margin: 0 auto; padding: 8px 20px 18px; }
-  .box { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 8px 8px 8px 14px; }
+  /* ---------- Kate ---------- */
+  body[data-app="kate"] .log { max-width: 520px; gap: 6px; padding: 14px 14px 10px; }
+  .kate-day { text-align: center; font-size: 12px; color: var(--muted); margin: 18px 0 14px; }
+  .kate-day b { display: block; color: var(--ink); font-weight: 600; }
+  .kate-row { display: flex; align-items: flex-end; gap: 8px; align-self: flex-start; max-width: 88%; }
+  .kate-row .kav { width: 26px; height: 26px; flex: none; visibility: hidden; }
+  .kate-row.last .kav { visibility: visible; }
+  .kate-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .kate-bubble { background: var(--kate-bubble); padding: 9px 14px; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  body[data-app="kate"] .msg.user { border-radius: 18px; margin: 6px 0; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 6px 34px; }
+  .pills button { background: #fff; border: 1.5px solid var(--accent); color: #0b6fae; border-radius: 99px; padding: 7px 14px; font-size: 14px; cursor: pointer; }
+  .pills button:hover:not(:disabled) { background: #eef7fd; }
+  .pills button:disabled { opacity: .45; cursor: default; }
+  .kate-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px; display: grid; gap: 6px; }
+  .kate-card .t { font-weight: 600; font-size: 14px; }
+  .kate-card .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: #e6f4fb; color: #0b6fae; }
+  .badge.info { background: #eef1f4; color: #4b5a67; }
+  .badge.adv { background: #fff2e0; color: #8a5300; }
+  .coin { color: #8a6d00; }
+  .kate-card button { justify-self: start; background: var(--accent); color: #fff; border: 0; border-radius: 99px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .kate-note { align-self: center; font-size: 12px; color: var(--muted); margin: 6px 0; }
+
+  /* ---------- composer ---------- */
+  form.compose { max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 20px 16px; }
+  .box { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 26px; padding: 8px 8px 8px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  body[data-app="gemini"] .box { border: 0; box-shadow: none; border-radius: 28px; }
+  body[data-app="claude"] .box { border-radius: 16px; }
   textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--ink); font: inherit; max-height: 160px; padding: 6px 0; }
-  .send { width: 36px; height: 36px; border-radius: 10px; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; font-size: 18px; }
-  .send:disabled { opacity: .4; cursor: default; }
+  .send { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; font-size: 18px; flex: none; }
+  body[data-app="claude"] .send { border-radius: 10px; }
+  .send:disabled { opacity: .35; cursor: default; }
   .note { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
+  body[data-app="kate"] form.compose { max-width: 520px; padding: 8px 12px 14px; }
+  body[data-app="kate"] .box { border: 1.5px solid var(--accent); border-radius: 22px; box-shadow: none; padding: 4px 4px 4px 14px; align-items: center; }
+  body[data-app="kate"] .send { width: 32px; height: 32px; }
+  body[data-app="kate"] .note { display: none; }
 
-  .login { max-width: 360px; margin: 12vh auto 0; padding: 0 20px; }
-  .login h2 { font-size: 22px; margin: 0 0 4px; }
+  /* ---------- login ---------- */
+  .login { max-width: 360px; margin: 10vh auto 0; padding: 0 20px; width: 100%; }
+  .login h2 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
   .login p { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
   .personas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
   .personas label { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; font-size: 14px; }
@@ -64,28 +148,25 @@
   .personas label:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .personas small { display: block; color: var(--muted); font-size: 11px; }
   .login input[type=password] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
-  .login button { width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .login button[type=submit] { width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px; border: 0; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
   .error { color: var(--err); font-size: 13px; margin-top: 8px; min-height: 1em; }
-  .banner { max-width: 720px; margin: 12px auto 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--err); color: var(--err); font-size: 13px; }
+  .banner { max-width: 760px; margin: 12px auto 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--err); color: var(--err); font-size: 13px; }
+
+  /* Standalone (not inside the showcase): a small app switcher */
+  body.standalone form.compose { padding-bottom: 50px; }
+  .switcher { position: fixed; left: 12px; bottom: 12px; display: flex; gap: 2px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 3px;
+    font: 12px system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  .switcher a { padding: 4px 9px; border-radius: 7px; text-decoration: none; color: #555; }
+  .switcher a[aria-current] { background: #0d0d0d; color: #fff; }
 </style>
 </head>
-<body>
-<header>
-  <div class="logo">✦</div>
-  <h1>Eigen AI</h1>
-  <div class="who" id="who" hidden>
-    <span class="conn" title="MCP-server van KBC Momentum">KBC Momentum gekoppeld</span>
-    <span id="whoName"></span>
-    <button id="reset" title="Nieuw gesprek">Nieuw</button>
-    <button id="logout">Afmelden</button>
-  </div>
-</header>
+<body data-app="chatgpt">
+<header class="bar" id="bar"></header>
+<div id="banner" class="banner hidden">Geen <code>ANTHROPIC_API_KEY</code> ingesteld: zet die in <code>poc-runner/.env</code> en herstart de chat-container.</div>
 
-<div id="banner" class="banner" hidden>Geen <code>ANTHROPIC_API_KEY</code> ingesteld: zet die in <code>poc-runner/.env</code> en herstart de chat-container.</div>
-
-<section id="loginView" class="login" hidden>
-  <h2>Welkom terug</h2>
-  <p>Meld aan als klant. Je assistent handelt enkel in jouw naam, via de KBC Momentum-koppeling.</p>
+<section id="loginView" class="login hidden">
+  <h2 id="loginTitle"></h2>
+  <p id="loginText"></p>
   <form id="loginForm">
     <div class="personas">
       <label><input type="radio" name="u" value="lien" checked />Lien<small>Tom &amp; Lien</small></label>
@@ -98,43 +179,91 @@
   </form>
 </section>
 
-<main id="chatView" hidden>
-  <div class="log" id="log"></div>
-</main>
-<form class="compose" id="compose" hidden>
+<main id="chatView" class="hidden"><div class="log" id="log"></div></main>
+<form class="compose hidden" id="compose">
   <div class="box">
-    <textarea id="input" rows="1" placeholder="Stel een vraag…"></textarea>
+    <textarea id="input" rows="1"></textarea>
     <button class="send" id="send" type="submit" aria-label="Verstuur">↑</button>
   </div>
-  <div class="note">Je assistent deelt nooit iets met KBC zonder jouw akkoord.</div>
+  <div class="note" id="note"></div>
 </form>
 
 <script>
-const KEY = 'eigen-ai.session';
 const $ = (id) => document.getElementById(id);
-let session = null;
-try { session = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch {}
+const APPS = ['chatgpt', 'gemini', 'claude', 'kate'];
+const params = new URLSearchParams(location.search);
+const APP = APPS.includes(params.get('app')) ? params.get('app') : 'chatgpt';
+document.body.dataset.app = APP;
+const KEY = 'poc-chat.session';
+
+const KATE_LOGO = `<svg class="kav" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#bfe3f6"/><circle cx="50" cy="50" r="42" fill="#e3f3fb"/><circle cx="50" cy="50" r="36" fill="#fff"/>
+  <g stroke="#0a97d9" stroke-width="7" stroke-linecap="round"><path d="M42 27h8"/><path d="M34 38h18"/><path d="M26 50h48"/><path d="M50 62h16"/><path d="M53 73h6"/></g></svg>`;
+
+const SKIN = {
+  chatgpt: { title: 'ChatGPT', placeholder: 'Vraag maar raak', note: 'ChatGPT kan fouten maken. Controleer belangrijke informatie.' },
+  gemini: { title: 'Gemini', placeholder: 'Vraag het aan Gemini', note: 'Gemini kan fouten maken, dus controleer de antwoorden.' },
+  claude: { title: 'Claude', placeholder: 'Stel een vraag…', note: 'Je assistent deelt nooit iets met KBC zonder jouw akkoord.' },
+  kate: { title: 'Kate', placeholder: 'Schrijf hier je vraag', note: '' },
+};
+const S = SKIN[APP];
+document.title = S.title;
+$('input').placeholder = S.placeholder;
+$('note').textContent = S.note;
+$('loginTitle').textContent = APP === 'kate' ? 'KBC Mobile' : `Aanmelden bij ${S.title}`;
+$('loginText').textContent = APP === 'kate'
+  ? 'Meld aan als klant om met Kate te praten.'
+  : 'Meld aan als klant. Je assistent is gekoppeld aan KBC Momentum en deelt enkel iets met jouw akkoord.';
 
 const SUGGESTIES = [
   'We denken aan een tweede kindje, misschien volgend voorjaar. Waar moeten we allemaal aan denken?',
   'Wat heeft KBC al voorbereid voor ons?',
   'Trek het gedeelde moment gezinsuitbreiding maar in.',
 ];
-const TOOL_LABEL = {
-  share_life_moment: 'Gedeeld met KBC',
-  get_moment_plan: 'Plan gelezen bij KBC',
-  revoke_moment: 'Ingetrokken bij KBC',
-};
+const TOOL_LABEL = { share_life_moment: 'Gedeeld met KBC', get_moment_plan: 'Plan gelezen bij KBC', revoke_moment: 'Ingetrokken bij KBC' };
+const KATE_NOTE = { bevestig_moment: '✓ Bevestigd', niet_voor_ons: 'Gewist' };
 const MOMENT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'huis kopen', ZAAK_STARTEN: 'zaak starten' };
+const UITVOERING = {
+  STP: ['Met één tik', '', 'Regel het'],
+  INFO: ['Info', 'info', 'Bekijk'],
+  ADVISEUR: ['Met adviseur', 'adv', 'Plan een gesprek'],
+};
 
-async function call(path, body) {
+let session = null;
+try { session = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch {}
+const name = () => (session ? session.user.sub[0].toUpperCase() + session.user.sub.slice(1) : '');
+
+// ---------- header ----------
+function renderHeader() {
+  const bar = $('bar');
+  if (APP === 'kate') {
+    bar.innerHTML = `<button class="icon-btn" id="hLogout" title="Afmelden">←</button><div class="brand">Kate</div><button class="icon-btn" id="hReset" title="Nieuw gesprek">✕</button>`;
+  } else {
+    const brand = APP === 'claude'
+      ? `<div class="claude-logo">✦</div>Claude`
+      : `${S.title} <span class="caret">⌄</span>`;
+    bar.innerHTML = `<div class="brand">${brand}</div><div class="tools">
+      <span class="chip-conn" title="MCP-server van KBC Momentum">KBC Momentum</span>
+      <button class="ghost" id="hReset">Nieuw</button><button class="ghost" id="hLogout">Afmelden</button>
+      <div class="avatar" id="hAvatar"></div></div>`;
+    $('hAvatar').textContent = name().slice(0, 1);
+  }
+  const loggedIn = Boolean(session);
+  for (const id of ['hLogout', 'hReset']) $(id).classList.toggle('hidden', !loggedIn);
+  if ($('hAvatar')) $('hAvatar').classList.toggle('hidden', !loggedIn);
+  bar.querySelector('.chip-conn')?.classList.toggle('hidden', !loggedIn);
+  $('hLogout').onclick = logout;
+  $('hReset').onclick = async () => { await call('/api/reset', { app: APP }).catch(() => {}); showHistory([]); };
+}
+
+// ---------- api ----------
+async function call(path, body, method = 'POST') {
   const res = await fetch(path, {
-    method: 'POST',
+    method,
     headers: { 'content-type': 'application/json', ...(session ? { 'x-session': session.session } : {}) },
-    body: JSON.stringify(body ?? {}),
+    body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && session) { setSession(null); }
+  if (res.status === 401 && session) setSession(null);
   if (!res.ok) throw Object.assign(new Error(data.error || 'error'), { status: res.status });
   return data;
 }
@@ -145,80 +274,227 @@ function setSession(s) {
   render();
 }
 
-function render() {
-  const inChat = Boolean(session);
-  $('loginView').hidden = inChat;
-  $('chatView').hidden = !inChat;
-  $('compose').hidden = !inChat;
-  $('who').hidden = !inChat;
-  if (inChat) {
-    $('whoName').textContent = session.user.sub[0].toUpperCase() + session.user.sub.slice(1);
-    if (!$('log').children.length) showEmpty();
-    $('input').focus();
+async function logout() {
+  await call('/api/logout').catch(() => {});
+  $('log').innerHTML = '';
+  setSession(null);
+}
+
+// ---------- rendering ----------
+const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+// Bot answers are markdown: render with marked, sanitize with DOMPurify, open links in a new tab
+const md = (s) => {
+  if (!window.marked || !window.DOMPurify) return esc(s).replace(/\n/g, '<br>');
+  const html = DOMPurify.sanitize(marked.parse(s, { gfm: true, breaks: true }));
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  t.content.querySelectorAll('a').forEach((a) => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+  return t.innerHTML;
+};
+
+function scroll() { $('chatView').scrollTop = $('chatView').scrollHeight; }
+
+function el(cls, html) {
+  const e = document.createElement('div');
+  e.className = cls;
+  if (html != null) e.innerHTML = html;
+  $('log').append(e);
+  return e;
+}
+
+// Kate groups consecutive bubbles and shows her avatar next to the last one
+function kateBubbles(texts) {
+  $('log').querySelectorAll('.kate-row.last').forEach((r) => {
+    if (r === $('log').lastElementChild) r.classList.remove('last');
+  });
+  let row = $('log').lastElementChild;
+  if (!row || !row.classList.contains('kate-row')) {
+    row = el('kate-row', `${KATE_LOGO}<div class="kate-col"></div>`);
   }
+  row.classList.add('last');
+  for (const t of texts) {
+    const b = document.createElement('div');
+    b.className = 'kate-bubble md';
+    b.innerHTML = md(t);
+    row.querySelector('.kate-col').append(b);
+  }
+  return row;
+}
+
+function pills(labels, onClick) {
+  // A new set of buttons replaces the old ones
+  $('log').querySelectorAll('.pills button').forEach((b) => (b.disabled = true));
+  const p = el('pills');
+  for (const l of labels) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = l;
+    b.onclick = () => { p.querySelectorAll('button').forEach((x) => (x.disabled = true)); onClick(l); };
+    p.append(b);
+  }
+  return p;
+}
+
+function addEvent(ev) {
+  $('log').querySelector('.empty')?.remove();
+  if (ev.type === 'user') {
+    el('msg user').textContent = ev.text;
+  } else if (ev.type === 'text') {
+    if (APP === 'kate') kateBubbles([ev.text]);
+    else el('msg ai', `<div class="md">${md(ev.text)}</div>`);
+  } else if (ev.type === 'tool') {
+    if (APP === 'kate') {
+      if (KATE_NOTE[ev.name] && !ev.isError) el('kate-note').textContent = `${KATE_NOTE[ev.name]}: ${MOMENT[ev.input?.moment] ?? ''}`;
+      return;
+    }
+    const t = el('tool' + (ev.isError ? ' err' : ''));
+    const i = ev.input || {};
+    const what = [i.moment && MOMENT[i.moment], i.fase, i.verwachte_maand].filter(Boolean).join(' · ');
+    t.innerHTML = '<div>🔗 <b></b> <span></span></div><details><summary>Antwoord van KBC</summary><pre></pre></details>';
+    t.querySelector('b').textContent = (ev.isError ? 'Mislukt: ' : '') + (TOOL_LABEL[ev.name] || ev.name);
+    t.querySelector('span').textContent = what ? '— ' + what : '';
+    t.querySelector('pre').textContent = ev.result;
+  } else if (ev.type === 'kate-vraag') {
+    kateBubbles([ev.text]);
+    pills(ev.buttons, (answer) => kateAnswer(ev.moment, answer));
+  } else if (ev.type === 'kate-plan') {
+    const row = kateBubbles([ev.text]);
+    const col = row.querySelector('.kate-col');
+    for (const a of ev.acties) {
+      const [label, cls, cta] = UITVOERING[a.uitvoering] ?? ['', 'info', 'Bekijk'];
+      const card = document.createElement('div');
+      card.className = 'kate-card';
+      card.innerHTML = `<div class="t"></div><div class="meta"><span class="badge ${cls}"></span></div><button type="button"></button>`;
+      card.querySelector('.t').textContent = a.titel;
+      card.querySelector('.badge').textContent = label;
+      if (a.kateCoin) {
+        const c = document.createElement('span');
+        c.className = 'coin';
+        c.textContent = `🪙 ${a.kateCoin.bedrag} Kate Coins · ${a.kateCoin.voorwaarde}`;
+        card.querySelector('.meta').append(c);
+      }
+      card.querySelector('button').textContent = cta;
+      card.querySelector('button').onclick = () => ask(`${cta}: ${a.titel}`);
+      col.append(card);
+    }
+  }
+  scroll();
 }
 
 function showEmpty() {
-  const log = $('log');
-  log.innerHTML = '';
-  const el = document.createElement('div');
-  el.className = 'empty';
-  el.innerHTML = '<h2>Waarmee kan ik helpen?</h2><div>Probeer bijvoorbeeld:</div><div class="chips"></div>';
+  if (APP === 'kate') {
+    el('kate-day', '<b>Vandaag</b>Kate helpt je nu verder');
+    kateBubbles([`Hey ${name()}. 😊 Ik ben Kate, je digitale assistent.`, 'Wat wil je graag doen?']);
+    pills(['📞 Bel KBC Live', 'Wat kun je allemaal?'], (l) => {
+      if (l.startsWith('📞')) {
+        el('msg user').textContent = 'Bel KBC Live';
+        kateBubbles(['Ik verbind je door met KBC Live. (In deze demo kan je niet echt bellen.)']);
+        scroll();
+      } else ask(l);
+    }).dataset.greeting = '1';
+    return;
+  }
+  const e = el('empty');
+  e.innerHTML = APP === 'gemini'
+    ? '<h2></h2><div class="sub">Waarmee kan ik je helpen?</div><div class="chips"></div>'
+    : '<h2></h2><div>Probeer bijvoorbeeld:</div><div class="chips"></div>';
+  e.querySelector('h2').textContent = APP === 'gemini' ? `Hallo, ${name()}` : APP === 'chatgpt' ? 'Waar kan ik mee helpen?' : 'Waarmee kan ik helpen?';
   for (const s of SUGGESTIES) {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = s;
     b.onclick = () => ask(s);
-    el.querySelector('.chips').append(b);
+    e.querySelector('.chips').append(b);
   }
-  log.append(el);
 }
 
-function add(cls, text) {
-  $('log').querySelector('.empty')?.remove();
-  const el = document.createElement('div');
-  el.className = cls;
-  if (text != null) el.textContent = text;
-  $('log').append(el);
-  $('chatView').scrollTop = $('chatView').scrollHeight;
-  return el;
+function showHistory(events) {
+  $('log').innerHTML = '';
+  if (APP === 'kate' || !events.length) showEmpty();
+  events.forEach(addEvent);
+  // Only buttons that are still the last thing in the conversation can be used
+  for (const p of $('log').querySelectorAll('.pills')) {
+    if (p !== $('log').lastElementChild) p.querySelectorAll('button').forEach((x) => (x.disabled = true));
+  }
 }
 
-function addTool(ev) {
-  const el = add('tool' + (ev.isError ? ' err' : ''));
-  const i = ev.input || {};
-  const what = [i.moment && MOMENT[i.moment], i.fase, i.verwachte_maand].filter(Boolean).join(' · ');
-  const head = document.createElement('div');
-  head.innerHTML = '🔗 <b></b> <span></span>';
-  head.querySelector('b').textContent = (ev.isError ? 'Mislukt: ' : '') + (TOOL_LABEL[ev.name] || ev.name);
-  head.querySelector('span').textContent = what ? '— ' + what : '';
-  const det = document.createElement('details');
-  det.innerHTML = '<summary>Antwoord van KBC</summary><pre></pre>';
-  det.querySelector('pre').textContent = ev.result;
-  el.append(head, det);
+async function render() {
+  const inChat = Boolean(session);
+  renderHeader();
+  $('loginView').classList.toggle('hidden', inChat);
+  $('chatView').classList.toggle('hidden', !inChat);
+  $('compose').classList.toggle('hidden', !inChat);
+  if (!inChat) return;
+  try {
+    const { events } = await call(`/api/history?app=${APP}`, null, 'GET');
+    showHistory(events);
+  } catch { showHistory([]); }
+  $('input').focus();
+  if (APP === 'kate') nudge();
 }
 
+// ---------- actions ----------
 let busy = false;
-async function ask(text) {
-  if (busy || !text.trim()) return;
+function typing() {
+  const t = APP === 'kate' ? kateBubbles(['…']) : el('typing', 'Aan het nadenken');
+  scroll();
+  return APP === 'kate' ? t.querySelector('.kate-bubble:last-child') : t;
+}
+function done(t) {
+  const row = t.closest('.kate-row');
+  t.remove();
+  if (row && !row.querySelector('.kate-bubble')) row.remove();
+}
+
+async function run(fn) {
+  if (busy) return;
   busy = true;
   $('send').disabled = true;
-  add('msg user', text);
-  const typing = add('typing', 'Aan het nadenken');
+  const t = typing();
   try {
-    const { events } = await call('/api/chat', { text });
-    typing.remove();
-    for (const ev of events) ev.type === 'tool' ? addTool(ev) : add('msg ai', ev.text);
+    const { events } = await fn();
+    done(t);
+    events.forEach(addEvent);
   } catch (e) {
-    typing.remove();
+    done(t);
     const msg = { no_llm: 'Er is geen ANTHROPIC_API_KEY ingesteld voor de chat.', llm_error: 'De AI is even niet bereikbaar. Probeer opnieuw.' }[e.message];
-    if (e.status !== 401) add('msg ai', msg || 'Er ging iets mis. Probeer opnieuw.');
+    if (e.status !== 401) APP === 'kate' ? kateBubbles([msg || 'Er ging iets mis. Probeer opnieuw.']) : (el('msg ai').textContent = msg || 'Er ging iets mis. Probeer opnieuw.');
   } finally {
     busy = false;
     $('send').disabled = false;
     $('input').focus();
   }
 }
+
+function ask(text) {
+  if (!text.trim()) return;
+  $('log').querySelectorAll('.pills button').forEach((b) => (b.disabled = true));
+  addEvent({ type: 'user', text });
+  return run(async () => {
+    const r = await call('/api/chat', { text, app: APP });
+    return { events: r.events.filter((e) => e.type !== 'user') };
+  });
+}
+
+function kateAnswer(moment, answer) {
+  addEvent({ type: 'user', text: answer });
+  return run(async () => {
+    const r = await call('/api/kate/answer', { moment, answer });
+    return { events: r.events.filter((e) => e.type !== 'user') };
+  });
+}
+
+// Kate speaks up by herself when the demo clock moves a moment to "vragen" or "voorstel"
+let nudging = false;
+async function nudge() {
+  if (nudging || busy || !session || APP !== 'kate') return;
+  nudging = true;
+  try {
+    const { events } = await call('/api/kate/nudge');
+    events.forEach(addEvent);
+  } catch {} finally { nudging = false; }
+}
+if (APP === 'kate') setInterval(nudge, 3000);
 
 $('loginForm').onsubmit = async (e) => {
   e.preventDefault();
@@ -236,10 +512,23 @@ $('input').addEventListener('keydown', (e) => {
 });
 const autosize = () => { const t = $('input'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
 $('input').addEventListener('input', autosize);
-$('logout').onclick = async () => { await call('/api/logout').catch(() => {}); $('log').innerHTML = ''; setSession(null); };
-$('reset').onclick = async () => { await call('/api/reset').catch(() => {}); showEmpty(); };
 
-fetch('/api/status').then((r) => r.json()).then((s) => { $('banner').hidden = s.llm; }).catch(() => {});
+// Standalone: offer the switcher that the showcase otherwise provides
+if (window.top === window) {
+  const sw = document.createElement('nav');
+  sw.className = 'switcher';
+  for (const a of APPS) {
+    const l = document.createElement('a');
+    l.href = `?app=${a}`;
+    l.textContent = SKIN[a].title;
+    if (a === APP) l.setAttribute('aria-current', 'page');
+    sw.append(l);
+  }
+  document.body.append(sw);
+  document.body.classList.add('standalone');
+}
+
+fetch('/api/status').then((r) => r.json()).then((s) => $('banner').classList.toggle('hidden', s.llm)).catch(() => {});
 render();
 </script>
 </body>
