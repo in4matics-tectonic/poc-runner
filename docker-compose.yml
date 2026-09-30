@@ -104,6 +104,9 @@ services:
       CHAT_PORT: ${CHAT_PORT:-7003}
       BACKEND_PORT: ${BACKEND_PORT:-7004}
       POC_DOMAIN: ${POC_DOMAIN:-}
+      # nginx renders the template only when the container starts. Bump this when nginx.conf.template changes,
+      # so a deploy recreates the gateway (deploy/autodeploy.sh also restarts it on every poc-runner change)
+      CONF_VERSION: "2"
     ports:
       - "${GATEWAY_PORT:-7000}:80"
     depends_on:

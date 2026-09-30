@@ -61,6 +61,8 @@ main() {
     [[ " ${up[*]} " == *" $svc "* ]] && ordered+=("$svc")
   done
   "${compose[@]}" up -d --no-deps --no-build "${ordered[@]}"
+  # The gateway's nginx config is a mounted template, rendered only at start: pick up changes to it
+  if $all; then "${compose[@]}" restart gateway; fi
 
   for svc in "${up[@]}"; do
     [ -n "${REPO[$svc]:-}" ] && echo "${!SRC_VAR[$svc]##*#}" >"$state/$svc"
