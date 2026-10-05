@@ -13,12 +13,13 @@ Requirements: Debian or Ubuntu with at least 4 GB RAM and 20 GB of disk (the Exp
 
 ### Azure
 
-**1–2. Create the VM with a static IP and open ports 80 and 443** (Azure Cloud Shell, or anywhere `az` is logged in). `Standard_B2ms` has 2 vCPUs and 8 GB RAM; Standard public IPs are static by default:
+**1–2. Create the VM with a static IP and open ports 80 and 443** (Azure Cloud Shell, or anywhere `az` is logged in). `Standard_B2als_v2` (2 vCPUs, 4 GB RAM, about $30/month in North Europe) is the cheapest x86 size with enough memory; bootstrap adds 2 GB of swap for builds. Standard public IPs are static by default:
 
 ```bash
-az group create -n tectonic-poc -l westeurope
-az vm create -g tectonic-poc -n tectonic-poc --image Ubuntu2404 --size Standard_B2ms \
-  --os-disk-size-gb 30 --public-ip-sku Standard --admin-username azureuser --generate-ssh-keys
+az group create -n tectonic-poc -l northeurope
+az vm create -g tectonic-poc -n tectonic-poc --image Ubuntu2404 --size Standard_B2als_v2 \
+  --os-disk-size-gb 30 --storage-sku StandardSSD_LRS --public-ip-sku Standard \
+  --admin-username azureuser --generate-ssh-keys
 az vm open-port -g tectonic-poc -n tectonic-poc --port 80,443 --priority 900
 ```
 

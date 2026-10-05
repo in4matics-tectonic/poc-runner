@@ -20,6 +20,13 @@ fi
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git; }
 systemctl enable --now docker
 
+# --- Swap: headroom for builds next to the running stack on a 4 GB VM -----------------------------
+if [ -z "$(swapon --show --noheadings)" ]; then
+  echo "adding a 2 GB swapfile…"
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+fi
+
 # --- Code -----------------------------------------------------------------------------------------
 if [ ! -d "$INSTALL_DIR/.git" ]; then
   git clone -q "$REPO" "$INSTALL_DIR"
