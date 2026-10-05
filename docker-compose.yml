@@ -58,6 +58,8 @@ services:
       dockerfile: mobile-app.Dockerfile
       additional_contexts:
         src: ${APP_SRC:-https://github.com/in4matics-tectonic/mobile-app.git#main}
+      args:
+        EXPO_PUBLIC_KATE_CHAT_URL: http://localhost:${CHAT_PORT:-7003}/?app=kate
     ports:
       - "${APP_PORT:-7001}:80"
     depends_on:

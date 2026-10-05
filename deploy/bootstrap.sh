@@ -41,9 +41,11 @@ random() { head -c "$1" /dev/urandom | base64 | tr -d '/+=\n'; }
 [ -n "${ANTHROPIC_API_KEY:-}" ] && set_env ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
 
 if [ -z "${POC_DOMAIN:-}" ]; then
-  ip=$(curl -fsS -H 'Metadata-Flavor: Google' \
+  # GCP metadata first; elsewhere (Azure, …) ask a public what's-my-IP service
+  ip=$(curl -fsS -m 3 -H 'Metadata-Flavor: Google' \
     http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip 2>/dev/null ||
-    curl -fsS https://api.ipify.org)
+    curl -fsS -m 10 https://api.ipify.org || curl -fsS -m 10 https://ifconfig.me)
+  [[ $ip =~ ^[0-9]+(\.[0-9]+){3}$ ]] || { echo "could not find the external IP, set POC_DOMAIN"; exit 1; }
   POC_DOMAIN="${ip//./-}.sslip.io"
 fi
 set_env POC_DOMAIN "$POC_DOMAIN"

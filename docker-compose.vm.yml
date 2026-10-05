@@ -37,6 +37,9 @@ services:
     environment:
       CORS_ORIGINS: https://${POC_DOMAIN}
   app:
+    build:
+      args:
+        EXPO_PUBLIC_KATE_CHAT_URL: https://chat.${POC_DOMAIN}/?app=kate
     ports: !reset []
   backoffice:
     ports: !reset []

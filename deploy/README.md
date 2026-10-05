@@ -9,7 +9,22 @@ The VM runs the same compose stack with [docker-compose.vm.yml](../docker-compos
 
 ## One-time setup
 
-Requirements: Debian or Ubuntu with at least 4 GB RAM and 20 GB of disk (the Expo web build needs the memory). The VM needs an external IP.
+Requirements: Debian or Ubuntu with at least 4 GB RAM and 20 GB of disk (the Expo web build needs the memory). The VM needs an external IP. Steps 1 and 2 differ per cloud; step 3 is the same everywhere.
+
+### Azure
+
+**1–2. Create the VM with a static IP and open ports 80 and 443** (Azure Cloud Shell, or anywhere `az` is logged in). `Standard_B2ms` has 2 vCPUs and 8 GB RAM; Standard public IPs are static by default:
+
+```bash
+az group create -n tectonic-poc -l westeurope
+az vm create -g tectonic-poc -n tectonic-poc --image Ubuntu2404 --size Standard_B2ms \
+  --os-disk-size-gb 30 --public-ip-sku Standard --admin-username azureuser --generate-ssh-keys
+az vm open-port -g tectonic-poc -n tectonic-poc --port 80,443 --priority 900
+```
+
+`az vm create` prints `publicIpAddress`. SSH in with `ssh azureuser@<publicIpAddress>` and continue with step 3.
+
+### GCP
 
 **1. Open ports 80 and 443** (Cloud Shell, or anywhere `gcloud` is logged in):
 
@@ -26,7 +41,9 @@ IP=$(gcloud compute instances describe tectonic-poc --zone us-east1-b --format='
 gcloud compute addresses create kbc-poc-ip --region us-east1 --addresses "$IP"
 ```
 
-**3. Install** (SSH into the VM, e.g. `gcloud compute ssh tectonic-poc --zone us-east1-b`):
+### Any cloud
+
+**3. Install** (SSH into the VM, e.g. `gcloud compute ssh tectonic-poc --zone us-east1-b` or `ssh azureuser@<ip>`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/in4matics-tectonic/poc-runner/main/deploy/bootstrap.sh \

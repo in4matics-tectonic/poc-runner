@@ -5,6 +5,9 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=src --exclude=node_modules --exclude=dist --exclude=.expo . .
 RUN npm ci --no-audit --no-fund
+# Where the app opens the Kate chat. Expo inlines EXPO_PUBLIC_* at export time, so it's set per deployment
+ARG EXPO_PUBLIC_KATE_CHAT_URL
+ENV EXPO_PUBLIC_KATE_CHAT_URL=$EXPO_PUBLIC_KATE_CHAT_URL
 RUN npx expo export --platform web --output-dir dist
 
 FROM nginx:1.29-alpine
