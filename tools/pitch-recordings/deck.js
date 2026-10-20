@@ -75,34 +75,22 @@ const JOURNEYS = {
   },
 };
 
-/** Who and which journey, top left on every journey slide. */
-function journeyLabel(s, j) {
-  s.addImage({ path: photo(j.who), x: 0.6, y: 0.45, w: 0.5, h: 0.5, rounding: true, sizing: { type: 'cover', w: 0.5, h: 0.5 }, objectName: 'persona' });
-  text(s, [
-    { text: `${j.journey} · ${j.name}`, options: { bold: true, color: C.ink, fontSize: 13, breakLine: true } },
-    { text: j.mode, options: { color: C.soft, fontSize: 12 } },
-  ], { x: 1.25, y: 0.46, w: 5, h: 0.5 });
-}
-
-/** A journey's opening slide: the steps as one numbered process. */
+/** A journey's opening slide: its name and the steps as one numbered process, nothing more. */
 function journeyIntro(section, j) {
   const s = light(section);
-  journeyLabel(s, j);
-  text(s, j.mode, { x: 0.6, y: 1.35, w: 12, h: 0.8, fontSize: 36, bold: true, color: C.ink });
-  text(s, j.intro, { x: 0.6, y: 2.2, w: 8.5, h: 0.9, fontSize: 18, color: C.soft });
-  s.addImage({ path: photo(j.who), x: 9.6, y: 1.35, w: 3.13, h: 1.75, sizing: { type: 'cover', w: 3.13, h: 1.75 }, objectName: 'photo' });
+  text(s, `${j.who === 'jonas' ? 'Jonas' : 'Tom & Lien'}: ${j.mode.toLowerCase()}`, { x: 0.6, y: 2.0, w: 12.1, h: 0.9, fontSize: 40, bold: true, color: C.ink, align: 'center' });
   const n = j.steps.length;
   const gap = 12.13 / n;
-  const y = 4.55;
+  const y = 3.6;
   s.addShape(pres.shapes.LINE, { x: 0.6 + gap / 2, y: y + 0.3, w: gap * (n - 1), h: 0, line: { color: C.line, width: 2 } });
   j.steps.forEach((st, i) => {
     const cx = 0.6 + gap * i + gap / 2;
     const human = j.adviser?.includes(i + 1);
     s.addShape(pres.shapes.OVAL, { x: cx - 0.3, y, w: 0.6, h: 0.6, fill: { color: human ? C.white : C.navy }, line: { color: C.navy, width: 2 }, objectName: `step ${i + 1}` });
     text(s, String(i + 1), { x: cx - 0.3, y, w: 0.6, h: 0.6, fontSize: 18, bold: true, color: human ? C.navy : C.white, align: 'center', valign: 'middle' });
-    text(s, st.label, { x: cx - gap / 2 + 0.1, y: y + 0.8, w: gap - 0.2, h: 0.8, fontSize: 15, bold: true, color: C.ink, align: 'center' });
+    text(s, st.label, { x: cx - gap / 2 + 0.1, y: y + 0.8, w: gap - 0.2, h: 0.8, fontSize: 16, bold: true, color: C.ink, align: 'center' });
   });
-  text(s, j.adviser ? '○ Steps with the adviser   ● Steps that run by themselves' : '● Every step runs by itself', { x: 0.6, y: 6.45, w: 12, h: 0.4, fontSize: 12, color: C.soft });
+  if (j.adviser) text(s, '○ with the adviser   ● by itself', { x: 0.6, y: 5.6, w: 12.1, h: 0.4, fontSize: 13, color: C.soft, align: 'center' });
   s.addNotes(`${j.journey}: ${j.mode}. ${j.intro}`);
 }
 
@@ -110,22 +98,20 @@ function journeyIntro(section, j) {
 function stepSlide(section, j, i) {
   const st = j.steps[i];
   const s = light(section);
-  journeyLabel(s, j);
 
-  // Left column
+  // Left: the step's title and where it sits in the journey, nothing more (the speaker says the rest)
   const lw = 4.55;
-  text(s, `STEP ${i + 1} OF ${j.steps.length}`, { x: 0.6, y: 1.3, w: lw, h: 0.3, fontSize: 12, bold: true, color: C.sky, charSpacing: 1 });
-  text(s, st.title, { x: 0.6, y: 1.65, w: lw, h: 1.2, fontSize: 28, bold: true, color: C.ink, fit: 'shrink' });
-  text(s, st.text, { x: 0.6, y: 2.9, w: lw, h: 1.1, fontSize: 15, color: C.soft });
+  const listH = j.steps.length * 0.5;
+  const top = (7.5 - (1.5 + 0.35 + listH)) / 2;
+  text(s, st.title, { x: 0.6, y: top, w: lw, h: 1.5, fontSize: 32, bold: true, color: C.ink, valign: 'bottom', fit: 'shrink' });
   j.steps.forEach((x, k) => {
-    const y = 4.25 + k * 0.4;
+    const y = top + 1.85 + k * 0.5;
     const now = k === i;
     const done = k < i;
-    s.addShape(pres.shapes.OVAL, { x: 0.6, y: y + 0.03, w: 0.26, h: 0.26, fill: { color: now ? C.navy : done ? C.sky : C.white }, line: { color: now ? C.navy : done ? C.sky : C.line, width: 1.25 } });
-    text(s, done ? '✓' : String(k + 1), { x: 0.6, y: y + 0.03, w: 0.26, h: 0.26, fontSize: 9, bold: true, color: now || done ? C.white : C.soft, align: 'center', valign: 'middle' });
-    text(s, x.label, { x: 1.0, y: y + 0.02, w: lw - 0.4, h: 0.3, fontSize: 13, bold: now, color: now ? C.ink : C.soft });
+    s.addShape(pres.shapes.OVAL, { x: 0.6, y: y + 0.03, w: 0.3, h: 0.3, fill: { color: now ? C.navy : done ? C.sky : C.white }, line: { color: now ? C.navy : done ? C.sky : C.line, width: 1.25 } });
+    text(s, done ? '✓' : String(k + 1), { x: 0.6, y: y + 0.03, w: 0.3, h: 0.3, fontSize: 10, bold: true, color: now || done ? C.white : C.soft, align: 'center', valign: 'middle' });
+    text(s, x.label, { x: 1.05, y: y + 0.02, w: lw - 0.45, h: 0.34, fontSize: 16, bold: now, color: now ? C.ink : C.soft });
   });
-  text(s, [{ text: '✓ ', options: { bold: true, color: C.green } }, { text: st.consent, options: { color: C.soft } }], { x: 0.6, y: 6.6, w: lw, h: 0.4, fontSize: 12 });
 
   // Right: the clip, in a phone body or a screen frame. The padding is larger than what the rounded corners cut
   // away, so the clip's square corners stay inside the frame.
@@ -144,7 +130,7 @@ function stepSlide(section, j, i) {
   });
   s.addMedia({ type: 'video', path: path.join(OUT, `${st.clip}.mp4`), x: vx, y: vy, w: vw, h: vh, cover: `data:image/png;base64,${fs.readFileSync(path.join(OUT, `${st.clip}.png`)).toString('base64')}`, objectName: `clip ${st.clip}` });
   videoSlides.push({ index: pres.slides.length, ms: Math.round(c.s * 1000) });
-  s.addNotes(st.notes);
+  s.addNotes(`${st.notes}\n\nConsent: ${st.consent}.`);
 }
 
 /** Three points and nothing else: the speaker says the rest (it's in the notes). */
