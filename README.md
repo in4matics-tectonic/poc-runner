@@ -28,6 +28,40 @@ Open **http://localhost:7000/kiosk**, live at [104-196-54-37.sslip.io/kiosk](htt
 - **It drives the shared demo state.** Every loop starts with a demo reset. Don't run it next to a live demo on the same backend, or open **`/kiosk?drive=0`** there: that one only follows whatever the demo is doing.
 - `Esc` goes back to the showcase, `f` toggles fullscreen, and the cursor hides when idle. For a dedicated screen: `chromium --kiosk http://localhost:7000/kiosk`. Works on landscape and portrait screens.
 
+## Pitch mode (the 3-minute finals script)
+
+Open **http://localhost:7000/pitch** (or the **Pitch** link in the top bar). It plays the finals pitch script by itself, on a fixed clock that matches the speaker, and loops: about 10 s of setup (demo reset, every pane logged in), then 3:00 of pitch.
+
+| Time | Beat | On screen |
+| --- | --- | --- |
+| 0:00 | Hook | Slide |
+| 0:15 | Tom & Lien: signals | App + backoffice; the demo clock runs to week 14 (71%, Kate may ask) |
+| 0:30 | Kate asks | The app confirms the moment |
+| 0:42 | Kate arranges | The app's birth checklist opens and runs "Laat Kate alles regelen" (4 in order, 5 to do) |
+| 1:05 | Arranged | Baby, swing in the coin tree, +100 Kate Coins |
+| 1:20 | Jonas: own AI | Chat (ChatGPT look, as `jonas`) + backoffice; the moment is shared through MCP, 85% → 93% |
+| 1:33 | The network | Jonas's ecosystem graph full screen: select CO2 insight, its three reasons light up, send it to his app |
+| 2:03 | The opportunity | Jonas's app shows it and he answers *Interesse* |
+| 2:15 | Closing | The customer network, then the closing slide |
+| 2:45 | Questions | Slide (buffer) |
+
+- Keys: `c` captions (the speaker's lines, for rehearsing), `t` timer, `r` restart, `Esc` back to the showcase. `/pitch?captions&timer` turns both on.
+- It drives the panes through the same bridge as the guided tour. When a pane can't do a step, the pitch makes the same backend call itself, so the story always reaches the next beat. Without `ANTHROPIC_API_KEY`, Jonas's share is that call instead of a chat.
+- Like the kiosk, it drives the shared demo state: don't run it next to a live demo on the same backend.
+
+Bridge messages the pitch sends (all from the showcase to a pane, never with credentials):
+
+| Pane | Message | Does |
+| --- | --- | --- |
+| app | `{kateStudio:'login', user}` | Switch to demo customer `tom`, `lien` or `jonas` |
+| app | `{kateStudio:'moment', answer:'confirm'}` | Press *Bevestigen* on Kate's question |
+| app | `{kateStudio:'checklist', open: true\|false}` / `{…, run:'all'}` | Open or close the birth checklist / *Laat Kate alles regelen* |
+| app | `{kateStudio:'kans', answer:'interesse'\|'afgewezen'}` | Answer the open opportunity |
+| backoffice | `{kateStudio:'graaf', vol}` | Ecosystem graph of the open customer, full screen on or off |
+| backoffice | `{kateStudio:'knoop', id}` | Select a node (its reasoning lines light up) |
+| backoffice | `{kateStudio:'kans', link}` · `{kateStudio:'kansTyp', tekst}` · `{kateStudio:'kansVerstuur'}` · `{kateStudio:'kansSluit'}` | Open the send dialog for a possible link, type the note, send, close |
+| chat | `{kateStudio:'login', user}` | Log in as that demo customer (default `lien`) |
+
 ## What runs
 
 | Service | Source | URL |

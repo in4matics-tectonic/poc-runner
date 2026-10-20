@@ -598,8 +598,12 @@ addEventListener('message', async (e) => {
   if (e.source !== window.parent || typeof e.data?.kateStudio !== 'string') return;
   const m = e.data;
   if (m.kateStudio === 'hello') tell({ kateStudio: 'ready', user: session?.user.sub ?? null });
-  if (m.kateStudio === 'login' && !session) {
-    try { setSession(await call('/api/login', { username: 'lien', password: 'in4matics-must-win' })); }
+  // { user } picks the demo customer (the pitch tour uses jonas); without it, lien as before
+  if (m.kateStudio === 'login') {
+    const user = ['lien', 'tom', 'jonas'].includes(m.user) ? m.user : 'lien';
+    if (session && (!m.user || session.user.sub === user)) return;
+    if (session) await logout();
+    try { setSession(await call('/api/login', { username: user, password: 'in4matics-must-win' })); }
     catch (err) { tell({ kateStudio: 'error', error: err.message }); }
   }
   if (m.kateStudio === 'ask' && session && APP !== 'kate' && typeof m.text === 'string') {

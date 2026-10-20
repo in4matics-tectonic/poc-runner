@@ -302,8 +302,8 @@ const STEPS = [
     done: () => true,
   },
 ];
-// Stop once Kate may ask and there's a sensitive signal for the next step (usually week 10, below 90%)
-const step3Done = () => faseAt('vragen') && Boolean(S.m?.signalenDetail?.some((s) => s.gevoelig));
+// Stop once Kate may ask (week 14, 71%). Tom & Lien have no sensitive signals anymore: health signals never count.
+const step3Done = () => faseAt('vragen');
 const lastShared = () => [...(S.m?.signalenDetail ?? [])].reverse().find((s) => s.bron === 'EIGEN_AI');
 const check = (ok, label, detail) => `<li class="${ok ? 'ok' : ''}"><span>${ok ? '✓' : '•'}</span>${label}${detail ? ` <em>${detail}</em>` : ''}</li>`;
 

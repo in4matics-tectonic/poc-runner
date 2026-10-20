@@ -1,0 +1,80 @@
+/* Pitch mode (/pitch): the stage fills the screen, the panes sit side by side per beat (pitch.js sets the grid),
+   and slides, captions and a timer lie on top. Nothing here applies outside /pitch. */
+
+body[data-pitch] .top,
+body[data-pitch] .tour,
+body[data-pitch] .tour-note,
+body[data-pitch] .sync-chip,
+body[data-pitch] .arch,
+body[data-pitch] .catcher,
+body[data-pitch] .ph .actions,
+body[data-pitch] .ph .apps { display: none !important; }
+body[data-pitch] .panel[data-id="chat"] .ph { flex-wrap: nowrap; }
+body[data-pitch] .stage { padding: 18px; gap: 18px; }
+
+/* Panes off screen keep their size and keep running; they just aren't drawn */
+body[data-pitch] .panel.p-off {
+  position: absolute !important; left: -200vw; top: 0;
+  width: 60vw; height: 80vh; visibility: hidden;
+}
+
+.pitch-ui { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+
+/* ---------- slides ---------- */
+.p-slide {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2.4vh;
+  padding: 8vh 9vw;
+  background: radial-gradient(1200px 700px at 75% -10%, #1a3866 0%, transparent 60%), var(--bg);
+  opacity: 0; transition: opacity .5s ease;
+}
+.p-slide.on { opacity: 1; }
+.p-slide h1 {
+  margin: 0; font-size: clamp(34px, 5.4vw, 92px); line-height: 1.05; letter-spacing: -.025em; font-weight: 700;
+}
+.p-slide h1 em { font-style: normal; color: var(--accent); }
+.ps-kicker {
+  margin: 0; color: var(--accent); font-weight: 650; letter-spacing: .12em; text-transform: uppercase;
+  font-size: clamp(12px, 1.2vw, 20px);
+}
+.ps-sub { margin: 0; max-width: 46ch; color: var(--muted); font-size: clamp(16px, 1.7vw, 30px); line-height: 1.35; }
+
+.ps-duo, .ps-cols { display: grid; gap: 1.6vw; width: 100%; max-width: 1400px; }
+.ps-duo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ps-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ps-duo > div, .ps-cols > div {
+  display: flex; flex-direction: column; gap: .5vh;
+  padding: 2.2vh 1.6vw; border-radius: 18px;
+  background: var(--panel); border: 1px solid var(--line);
+}
+.ps-duo b, .ps-cols b { font-size: clamp(18px, 1.9vw, 34px); }
+.ps-duo span, .ps-cols span { color: var(--muted); font-size: clamp(14px, 1.3vw, 24px); line-height: 1.3; }
+.ps-cols b { color: var(--accent); }
+.ps-trust { margin: 0; color: var(--muted); font-size: clamp(13px, 1.15vw, 21px); }
+.ps-tag { font-size: clamp(28px, 3.8vw, 66px) !important; }
+
+.ps-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 1vh; font-size: clamp(15px, 1.4vw, 24px); }
+.ps-checks li { display: flex; gap: .6em; align-items: baseline; color: var(--muted); }
+.ps-checks li.ok { color: var(--ink); }
+.ps-checks li span { width: 1.2em; color: var(--wait); }
+.ps-checks li.ok span { color: var(--ok); }
+.ps-checks em { font-style: normal; font-size: .8em; color: var(--muted); }
+
+/* ---------- captions, timer, keys ---------- */
+.p-cap {
+  position: absolute; left: 50%; bottom: 3vh; transform: translateX(-50%);
+  width: min(1100px, 86vw); margin: 0; padding: 1.2vh 1.4vw;
+  border-radius: 14px; background: rgba(5, 10, 20, .86); border: 1px solid var(--line);
+  font-size: clamp(14px, 1.25vw, 22px); line-height: 1.4; text-align: center;
+}
+.p-time {
+  position: absolute; top: 12px; right: 14px; margin: 0; padding: 4px 10px; border-radius: 8px;
+  background: rgba(5, 10, 20, .86); border: 1px solid var(--line);
+  font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums;
+}
+.p-keys {
+  position: absolute; left: 14px; bottom: 12px; margin: 0; color: var(--muted); font-size: 12px;
+  transition: opacity .6s;
+}
+.p-keys.gone { opacity: 0; }
+.p-cap[hidden], .p-time[hidden], .p-slide[hidden] { display: none; }
