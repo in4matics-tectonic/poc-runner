@@ -16,13 +16,13 @@ const FONT = 'Arial';
 /** Clip sizes and lengths (ffprobe), for the frame and the autoplay timing. */
 const CLIPS = {
   'tom-agent': { w: 1600, h: 1146, s: 15.5 },
-  'tom-ask': { w: 720, h: 1476, s: 24.8 },
+  'tom-ask': { w: 720, h: 1476, s: 19.1 }, // encoded at 1.3x
   'tom-offer': { w: 720, h: 1476, s: 13.3 },
-  'jonas-ai': { w: 1440, h: 1120, s: 21.8 },
+  'jonas-ai': { w: 1440, h: 1120, s: 15.6 }, // encoded at 1.4x (the typing)
   'jonas-agent': { w: 1600, h: 1146, s: 15.5 },
   'jonas-co2': { w: 1600, h: 1000, s: 27.7 },
-  'jonas-pair': { w: 1600, h: 1000, s: 21.8 },
-  'jonas-yes': { w: 720, h: 1476, s: 16.3 },
+  'jonas-pair': { w: 1600, h: 1000, s: 17.4 }, // encoded at 1.25x
+  'jonas-yes': { w: 720, h: 1476, s: 13.6 }, // encoded at 1.2x
   'jonas-connected': { w: 1600, h: 1000, s: 11.3 },
 };
 
@@ -42,43 +42,120 @@ const brand = (slide, onDark = true) =>
 /** Slides with a clip, for the autoplay step after writing. */
 const videoSlides = [];
 
-/** A demo slide: who and which journey, the point, a consent line, and the clip on the right. */
-function clipSlide(section, { clip, who, journey, title, points, consent, notes }) {
-  const s = light(section);
-  const c = CLIPS[clip];
-  const phone = c.h > c.w;
-  // The clip: phone clips tall on the right, back office and chat clips wide
-  const vh = phone ? 6.5 : Math.min(6.1, (7.1 * c.h) / c.w);
-  const vw = (vh * c.w) / c.h;
-  const vx = 13.33 - 0.55 - vw;
-  const vy = (7.5 - vh) / 2;
-  s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-    x: vx - 0.08, y: vy - 0.08, w: vw + 0.16, h: vh + 0.16, rectRadius: phone ? 0.35 : 0.15,
-    fill: { color: phone ? '05090F' : C.white }, line: { color: C.line, width: 1 },
-    shadow: { type: 'outer', color: '0B1F3A', opacity: 0.25, blur: 12, offset: 4, angle: 90 }, objectName: 'clip frame',
-  });
-  s.addMedia({ type: 'video', path: path.join(OUT, `${clip}.mp4`), x: vx, y: vy, w: vw, h: vh, cover: `data:image/png;base64,${fs.readFileSync(path.join(OUT, `${clip}.png`)).toString('base64')}`, objectName: `clip ${clip}` });
-  videoSlides.push({ index: pres.slides.length, ms: Math.round(c.s * 1000) });
+// ---------- the two journeys, step by step ----------
+const JOURNEYS = {
+  tom: {
+    who: 'tom', name: 'Tom & Lien', journey: 'Journey 1', mode: 'Fully automatic',
+    intro: 'The agent sees standard products and very digital customers: Kate handles everything in the app. No person involved.',
+    steps: [
+      { clip: 'tom-agent', label: 'The agent decides', title: 'Signals come in, the agent decides', text: 'From sources they allowed, their score passes 70%. The agent picks the channel: Kate in the app.', consent: 'Their account, app use and own AI · never health data',
+        notes: '"Tom and Lien haven\'t told anyone yet. But from the sources they allowed, their bank sees a baby store, a childcare registration, a question to their own AI. KBC\'s agent decides who approaches them: retail, standard products, very digital. Kate handles this herself."' },
+      { clip: 'tom-ask', label: 'Kate asks first', title: 'Kate asks first, then arranges it', text: 'Nothing happens without their yes. Then Kate arranges the birth checklist with one tap.', consent: 'Only after Tom confirms',
+        notes: '"Kate asks first. Only after a yes does anything happen. Four things are already in order; Kate arranges the rest with one tap."' },
+      { clip: 'tom-offer', label: "Kate's own offer", title: 'Kate sends an offer on her own', text: 'A savings plan for the little one, straight into the app. Tom says yes. No person involved.', consent: 'Only once the moment is confirmed',
+        notes: '"Then the agent goes one step further on its own: a savings plan for the little one, straight into the app. Tom says yes. No person touched it."' },
+    ],
+  },
+  jonas: {
+    who: 'jonas', name: 'Jonas · Stroomvaart', journey: 'Journey 2', mode: 'An adviser in the loop',
+    intro: 'A business customer and a big investment: the agent sees he engages more with a person, and brings in an adviser.',
+    adviser: [2, 3],
+    steps: [
+      { clip: 'jonas-ai', label: 'His own AI shares', title: 'His own AI shares the moment', text: 'Jonas asks how to finance a second electric ship, and lets his AI share only the moment with KBC.', consent: 'Only because he asked · never the conversation',
+        notes: '"Jonas runs Stroomvaart: electric inland shipping on the Scheldt. He asks his own AI how to finance a second ship, and lets it share only the moment with KBC. Never the conversation."' },
+      { clip: 'jonas-agent', label: 'The agent calls an adviser', title: 'The agent calls in an adviser', text: 'Business customer, big investment: 75% engagement via a person, 63% via the app. The adviser gets a task.', consent: 'His account, his app, and the moment he shared',
+        notes: '"Here the agent decides differently: a business customer, a big investment. He will engage more with a person. So it hands this to an adviser, with a task and suggestions."' },
+      { clip: 'jonas-pair', label: 'The adviser connects partners', title: 'The adviser connects his partners', text: 'Billit and Kube both work for Jonas, not with each other. In the network graph, one click proposes they do.', consent: 'Data flows between them only after his yes',
+        notes: '"In Stroomvaart\'s network the adviser sees more: Billit and Kube both work for Jonas, but not with each other. One click proposes they work together: his shore-power invoices become CO2 figures."' },
+      { clip: 'jonas-yes', label: 'Jonas says yes', title: 'Jonas says yes in his app', text: 'Both proposals pop up in his app: the CO2 insight and the partner link.', consent: 'He decides, and can switch it off any time',
+        notes: '"Seconds later both proposals are in his app, and Jonas says yes to both."' },
+      { clip: 'jonas-connected', label: 'Partners connected', title: 'The partners now work together', text: "In KBC's network the line between Billit and Kube turns solid: two partners, working for one customer.", consent: 'He can switch it off any time',
+        notes: '"And in his network the line turns solid: two partners now work together, for one customer."' },
+    ],
+  },
+};
 
-  // Text column
-  const tw = vx - 0.6 - 0.45;
-  s.addImage({ path: photo(who), x: 0.6, y: 0.55, w: 0.62, h: 0.62, rounding: true, sizing: { type: 'cover', w: 0.62, h: 0.62 }, objectName: 'persona' });
+/** Who and which journey, top left on every journey slide. */
+function journeyLabel(s, j) {
+  s.addImage({ path: photo(j.who), x: 0.6, y: 0.45, w: 0.5, h: 0.5, rounding: true, sizing: { type: 'cover', w: 0.5, h: 0.5 }, objectName: 'persona' });
   text(s, [
-    { text: who === 'jonas' ? 'Jonas · Stroomvaart' : 'Tom & Lien', options: { bold: true, color: C.ink, fontSize: 15, breakLine: true } },
-    { text: journey, options: { color: C.soft, fontSize: 12 } },
-  ], { x: 1.35, y: 0.58, w: tw - 0.75, h: 0.6 });
-  text(s, title, { x: 0.6, y: 1.55, w: tw, h: 1.7, fontSize: 32, bold: true, color: C.ink, valign: 'top', fit: 'shrink' });
-  text(s, points.map((p, i) => ({ text: p, options: { bullet: { indent: 18 }, breakLine: i < points.length - 1, paraSpaceAfter: 8 } })),
-    { x: 0.6, y: 3.35, w: tw, h: 2.3, fontSize: 16, color: C.ink });
-  if (consent) {
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.6, y: 5.85, w: tw, h: 0.9, rectRadius: 0.12, fill: { color: C.mint }, line: { color: '3CCF8E', width: 1.25 }, objectName: 'consent' });
-    text(s, [
-      { text: 'SHARED WITH CONSENT', options: { bold: true, fontSize: 10, color: '157A42', charSpacing: 1, breakLine: true } },
-      { text: consent, options: { fontSize: 13, color: C.ink } },
-    ], { x: 0.8, y: 5.97, w: tw - 0.4, h: 0.7 });
-  }
-  s.addNotes(notes);
-  return s;
+    { text: `${j.journey} · ${j.name}`, options: { bold: true, color: C.ink, fontSize: 13, breakLine: true } },
+    { text: j.mode, options: { color: C.soft, fontSize: 12 } },
+  ], { x: 1.25, y: 0.46, w: 5, h: 0.5 });
+}
+
+/** A journey's opening slide: the steps as one numbered process. */
+function journeyIntro(section, j) {
+  const s = light(section);
+  journeyLabel(s, j);
+  text(s, j.mode, { x: 0.6, y: 1.35, w: 12, h: 0.8, fontSize: 36, bold: true, color: C.ink });
+  text(s, j.intro, { x: 0.6, y: 2.2, w: 8.5, h: 0.9, fontSize: 18, color: C.soft });
+  s.addImage({ path: photo(j.who), x: 9.6, y: 1.35, w: 3.13, h: 1.75, sizing: { type: 'cover', w: 3.13, h: 1.75 }, objectName: 'photo' });
+  const n = j.steps.length;
+  const gap = 12.13 / n;
+  const y = 4.55;
+  s.addShape(pres.shapes.LINE, { x: 0.6 + gap / 2, y: y + 0.3, w: gap * (n - 1), h: 0, line: { color: C.line, width: 2 } });
+  j.steps.forEach((st, i) => {
+    const cx = 0.6 + gap * i + gap / 2;
+    const human = j.adviser?.includes(i + 1);
+    s.addShape(pres.shapes.OVAL, { x: cx - 0.3, y, w: 0.6, h: 0.6, fill: { color: human ? C.white : C.navy }, line: { color: C.navy, width: 2 }, objectName: `step ${i + 1}` });
+    text(s, String(i + 1), { x: cx - 0.3, y, w: 0.6, h: 0.6, fontSize: 18, bold: true, color: human ? C.navy : C.white, align: 'center', valign: 'middle' });
+    text(s, st.label, { x: cx - gap / 2 + 0.1, y: y + 0.8, w: gap - 0.2, h: 0.8, fontSize: 15, bold: true, color: C.ink, align: 'center' });
+  });
+  text(s, j.adviser ? '○ Steps with the adviser   ● Steps that run by themselves' : '● Every step runs by itself', { x: 0.6, y: 6.45, w: 12, h: 0.4, fontSize: 12, color: C.soft });
+  s.addNotes(`${j.journey}: ${j.mode}. ${j.intro}`);
+}
+
+/** One step: the same layout on every slide. Left the step and the list of steps, right the clip. */
+function stepSlide(section, j, i) {
+  const st = j.steps[i];
+  const s = light(section);
+  journeyLabel(s, j);
+
+  // Left column
+  const lw = 4.55;
+  text(s, `STEP ${i + 1} OF ${j.steps.length}`, { x: 0.6, y: 1.3, w: lw, h: 0.3, fontSize: 12, bold: true, color: C.sky, charSpacing: 1 });
+  text(s, st.title, { x: 0.6, y: 1.65, w: lw, h: 1.2, fontSize: 28, bold: true, color: C.ink, fit: 'shrink' });
+  text(s, st.text, { x: 0.6, y: 2.9, w: lw, h: 1.1, fontSize: 15, color: C.soft });
+  j.steps.forEach((x, k) => {
+    const y = 4.25 + k * 0.4;
+    const now = k === i;
+    const done = k < i;
+    s.addShape(pres.shapes.OVAL, { x: 0.6, y: y + 0.03, w: 0.26, h: 0.26, fill: { color: now ? C.navy : done ? C.sky : C.white }, line: { color: now ? C.navy : done ? C.sky : C.line, width: 1.25 } });
+    text(s, done ? '✓' : String(k + 1), { x: 0.6, y: y + 0.03, w: 0.26, h: 0.26, fontSize: 9, bold: true, color: now || done ? C.white : C.soft, align: 'center', valign: 'middle' });
+    text(s, x.label, { x: 1.0, y: y + 0.02, w: lw - 0.4, h: 0.3, fontSize: 13, bold: now, color: now ? C.ink : C.soft });
+  });
+  text(s, [{ text: '✓ ', options: { bold: true, color: C.green } }, { text: st.consent, options: { color: C.soft } }], { x: 0.6, y: 6.6, w: lw, h: 0.4, fontSize: 12 });
+
+  // Right: the clip, in a phone body or a screen frame. The padding is larger than what the rounded corners cut
+  // away, so the clip's square corners stay inside the frame.
+  const c = CLIPS[st.clip];
+  const phone = c.h > c.w;
+  const pad = phone ? { x: 0.2, y: 0.32, r: 0.42 } : { x: 0.1, y: 0.1, r: 0.12 };
+  const box = { x: 5.7, y: 0.45, w: 7.03, h: 6.6 };
+  const vh = Math.min(box.h - 2 * pad.y, ((box.w - 2 * pad.x) * c.h) / c.w);
+  const vw = (vh * c.w) / c.h;
+  const vx = box.x + (box.w - vw) / 2;
+  const vy = box.y + (box.h - vh) / 2;
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+    x: vx - pad.x, y: vy - pad.y, w: vw + 2 * pad.x, h: vh + 2 * pad.y, rectRadius: pad.r,
+    fill: { color: phone ? '05090F' : C.white }, line: { color: phone ? '2A3A55' : C.line, width: phone ? 2 : 1 },
+    shadow: { type: 'outer', color: '0B1F3A', opacity: 0.18, blur: 10, offset: 3, angle: 90 }, objectName: phone ? 'phone body' : 'screen frame',
+  });
+  s.addMedia({ type: 'video', path: path.join(OUT, `${st.clip}.mp4`), x: vx, y: vy, w: vw, h: vh, cover: `data:image/png;base64,${fs.readFileSync(path.join(OUT, `${st.clip}.png`)).toString('base64')}`, objectName: `clip ${st.clip}` });
+  videoSlides.push({ index: pres.slides.length, ms: Math.round(c.s * 1000) });
+  s.addNotes(st.notes);
+}
+
+/** Three points and nothing else: the speaker says the rest (it's in the notes). */
+function threePoints(s, items) {
+  items.forEach(([badge, head], i) => {
+    const x = 0.6 + i * 4.1;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.35, w: 3.8, h: 2.8, rectRadius: 0.15, fill: { color: C.white }, line: { color: C.line, width: 1 }, objectName: `point ${i + 1}` });
+    s.addShape(pres.shapes.OVAL, { x: x + 1.4, y: 2.75, w: 1.0, h: 1.0, fill: { color: C.navy }, line: { type: 'none' } });
+    text(s, badge, { x: x + 1.4, y: 2.75, w: 1.0, h: 1.0, fontSize: 30, bold: true, color: C.white, align: 'center', valign: 'middle' });
+    text(s, head, { x: x + 0.3, y: 4.0, w: 3.2, h: 1.0, fontSize: 24, bold: true, color: C.ink, align: 'center' });
+  });
 }
 
 // ---------- 1 · Opening (speaker 1) ----------
@@ -88,7 +165,7 @@ pres.addSection({ title: 'Opening' });
   brand(s);
   text(s, ['Moving in together.', 'Buying a house.', 'Getting married.', 'A baby.', 'Retiring.'].map((t, i, a) => ({ text: t, options: { breakLine: i < a.length - 1 } })),
     { x: 0.6, y: 1.2, w: 6.6, h: 3.6, fontSize: 36, bold: true, color: C.white, paraSpaceAfter: 4 });
-  text(s, 'The best moments of your life. And each one comes with a list.', { x: 0.6, y: 5.3, w: 6.6, h: 1.2, fontSize: 22, color: C.sun, italic: true });
+  text(s, 'The best moments of your life. And each one comes with a list.', { x: 0.6, y: 5.3, w: 6.6, h: 1.2, fontSize: 22, color: C.sky });
   s.addImage({ path: photo('tom'), x: 7.75, y: 0.9, w: 5.0, h: 2.79, rounding: false, objectName: 'photo Tom & Lien' });
   s.addImage({ path: photo('jonas'), x: 7.75, y: 3.9, w: 5.0, h: 2.79, objectName: 'photo Jonas' });
   s.addNotes('Speaker 1. "Moving in together. Buying a house. Getting married. A baby. Retiring. The best moments of your life. And each one comes with a list."');
@@ -102,23 +179,7 @@ pres.addSection({ title: 'Opening' });
 }
 {
   const s = light('Opening');
-  brand(s, false);
-  text(s, 'Today, you figure it out yourself', { x: 0.6, y: 0.9, w: 12, h: 0.8, fontSize: 36, bold: true, color: C.ink });
-  const cards = [
-    ['?', 'Which insurance?', 'Which product fits now, and which one do you already have?'],
-    ['✎', 'Which form, which agency, by when?', 'Child benefit, the municipality, your health fund, your employer.'],
-    ['⇄', 'See, compare, coordinate', 'All of it yourself, at the moment you have the least time.'],
-  ];
-  cards.forEach(([icon, head, body], i) => {
-    const x = 0.6 + i * 4.1;
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.0, w: 3.8, h: 2.6, rectRadius: 0.15, fill: { color: C.white }, line: { color: C.line, width: 1 }, objectName: `card ${i + 1}` });
-    s.addShape(pres.shapes.OVAL, { x: x + 0.3, y: 2.3, w: 0.7, h: 0.7, fill: { color: C.sky }, line: { type: 'none' } });
-    text(s, icon, { x: x + 0.3, y: 2.3, w: 0.7, h: 0.7, fontSize: 22, bold: true, color: C.white, align: 'center', valign: 'middle' });
-    text(s, head, { x: x + 0.3, y: 3.15, w: 3.2, h: 0.6, fontSize: 18, bold: true, color: C.ink });
-    text(s, body, { x: x + 0.3, y: 3.8, w: 3.2, h: 0.75, fontSize: 14, color: C.soft });
-  });
-  text(s, 'At the most important moments of your life, you want to be there for your family. Not for your paperwork.', { x: 0.6, y: 5.0, w: 12, h: 0.8, fontSize: 20, color: C.ink });
-  text(s, "That's exactly KBC's question: how do you get from intent to action?", { x: 0.6, y: 5.9, w: 12, h: 0.7, fontSize: 22, bold: true, color: C.sky });
+  threePoints(s, [['?', 'Which insurance?'], ['✎', 'Which form, which agency, by when?'], ['⇄', 'See, compare, coordinate']]);
   s.addNotes('"Today you figure it out yourself. Which insurance? Which form, at which agency, by when? You have to see what is needed yourself, compare yourself and coordinate yourself. But at the most important moments of your life you want to be there for your family. Not for your paperwork. That is exactly KBC\'s question: how do you get from intent to action?"');
 }
 
@@ -134,121 +195,34 @@ pres.addSection({ title: 'The reveal' });
 }
 {
   const s = light('The reveal');
-  brand(s, false);
-  text(s, 'One engine for every life moment', { x: 0.6, y: 0.9, w: 12, h: 0.8, fontSize: 36, bold: true, color: C.ink });
-  const cols = [
-    ['1', 'Kate sees it', 'Signals from five sources, only with your consent, and never health data.'],
-    ['2', 'Kate asks first', 'Nothing happens without your yes. Then an AI agent picks the channel: Kate in the app, or an adviser.'],
-    ['3', 'Kate arranges it', 'One plan with KBC and partners, that mostly runs by itself.'],
-  ];
-  cols.forEach(([n, head, body], i) => {
-    const x = 0.6 + i * 4.1;
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.0, w: 3.8, h: 3.0, rectRadius: 0.15, fill: { color: C.white }, line: { color: C.line, width: 1 }, objectName: `step ${n}` });
-    s.addShape(pres.shapes.OVAL, { x: x + 0.3, y: 2.3, w: 0.75, h: 0.75, fill: { color: C.navy }, line: { type: 'none' } });
-    text(s, n, { x: x + 0.3, y: 2.3, w: 0.75, h: 0.75, fontSize: 24, bold: true, color: C.sun, align: 'center', valign: 'middle' });
-    text(s, head, { x: x + 0.3, y: 3.25, w: 3.2, h: 0.6, fontSize: 22, bold: true, color: C.ink });
-    text(s, body, { x: x + 0.3, y: 3.9, w: 3.2, h: 1.0, fontSize: 15, color: C.soft });
-  });
-  text(s, 'You live the moment. Kate handles the rest.', { x: 0.6, y: 5.6, w: 12, h: 0.9, fontSize: 30, bold: true, color: C.sky });
+  threePoints(s, [['1', 'Kate sees it'], ['2', 'Kate asks first'], ['3', 'Kate arranges it']]);
   s.addNotes('"One engine for every life moment. And at each moment Kate does three things. She sees it: signals from five sources, only with your consent and never health data. She asks first: nothing happens without your yes, and our AI agent picks the right channel. She arranges it: one plan with KBC and partners that mostly runs by itself. You live the moment. Kate handles the rest."');
 }
 
-// ---------- 3 · Tom & Lien: fully automatic ----------
+// ---------- 3 · Tom & Lien: fully automatic, step by step ----------
 pres.addSection({ title: 'Tom & Lien' });
-clipSlide('Tom & Lien', {
-  clip: 'tom-agent', who: 'tom', journey: 'Journey 1 · fully automatic',
-  title: 'The agent decides: Kate handles this herself',
-  points: ['Their score climbs past 70% from signals they allowed', 'Retail, standard products, very digital: 83% engagement via the app, 30% via an adviser'],
-  consent: 'Account transactions, KBC Mobile use, their own AI · never health data',
-  notes: '"Tom and Lien haven\'t told anyone yet. But from the sources they allowed, their bank sees a baby store, a childcare registration, a question to their own AI. KBC\'s agent decides who should approach them: retail, standard products, very digital. Kate handles this herself. No adviser needed."',
-});
-clipSlide('Tom & Lien', {
-  clip: 'tom-offer', who: 'tom', journey: 'Journey 1 · fully automatic',
-  title: 'Kate even sends an offer on her own',
-  points: ['After their yes, Kate arranges the birth checklist with one tap', 'Then the agent goes one step further: a savings plan for the little one, straight into the app', 'Tom says yes. No person touched it'],
-  consent: 'Only after Tom confirmed the moment himself',
-  notes: '"Kate asks first, and after their yes she arranges the rest with one tap. Then the agent goes one step further on its own: a savings plan for the little one, straight into the app. Tom says yes. No person touched it."',
-});
+journeyIntro('Tom & Lien', JOURNEYS.tom);
+JOURNEYS.tom.steps.forEach((_, i) => stepSlide('Tom & Lien', JOURNEYS.tom, i));
 
-// ---------- 4 · Jonas: an adviser in the loop ----------
+// ---------- 4 · Jonas: an adviser in the loop, step by step ----------
 pres.addSection({ title: 'Jonas' });
-clipSlide('Jonas', {
-  clip: 'jonas-agent', who: 'jonas', journey: 'Journey 2 · adviser in the loop',
-  title: 'For Jonas, the agent calls in an adviser',
-  points: ['His own AI shared only the moment: a second electric ship', 'Business customer, big investment: 75% engagement via a person, 63% via the app', 'The adviser gets a task, with the agent\'s suggestions'],
-  consent: 'His own AI shared the moment after his yes · never the conversation',
-  notes: '"Jonas runs Stroomvaart: electric inland shipping on the Scheldt. His own AI shares only the moment with KBC. Here the agent decides differently: a business customer, a big investment. He will engage more with a person. So it hands this to an adviser, with a task and suggestions."',
-});
-clipSlide('Jonas', {
-  clip: 'jonas-pair', who: 'jonas', journey: 'Journey 2 · adviser in the loop',
-  title: 'Connecting partners, for one customer',
-  points: ['Billit and Kube both work for Jonas, but not with each other', 'From the network graph, the adviser proposes the link: shore-power invoices become CO2 figures'],
-  consent: 'Billit and Kube exchange data only after Jonas\'s yes',
-  notes: '"The adviser opens Stroomvaart\'s network. Billit and Kube both work for Jonas, but not with each other. With one click, the adviser proposes that they work together for him: his shore-power invoices become CO2 figures."',
-});
-clipSlide('Jonas', {
-  clip: 'jonas-connected', who: 'jonas', journey: 'Journey 2 · adviser in the loop',
-  title: 'Jonas says yes, and the line turns solid',
-  points: ['The proposal pops up in his app, he agrees', 'In KBC\'s network the two partners are now connected, for him'],
-  consent: 'He can switch it off any time',
-  notes: '"Jonas says yes in his app, and in his network the line turns solid: two partners now work together, for one customer."',
-});
+journeyIntro('Jonas', JOURNEYS.jonas);
+JOURNEYS.jonas.steps.forEach((_, i) => stepSlide('Jonas', JOURNEYS.jonas, i));
 
 // ---------- 5 · Closing ----------
 pres.addSection({ title: 'Closing' });
 {
   const s = dark('Closing');
-  brand(s);
-  text(s, 'One agent, for millions of customers', { x: 0.6, y: 1.0, w: 12, h: 0.9, fontSize: 40, bold: true, color: C.white });
-  text(s, 'Automatic where it can. A person where it matters.', { x: 0.6, y: 1.9, w: 12, h: 0.6, fontSize: 22, color: C.sky });
-  [['Customer', 'From intent to action, without searching'], ['KBC', 'At the right moment, through the right channel'], ['Partner', 'Customers who gave consent, and partners that work together for them']].forEach(([h, b], i) => {
-    const x = 0.6 + i * 4.1;
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.9, w: 3.8, h: 1.9, rectRadius: 0.15, fill: { color: C.navy2 }, line: { color: '22385C', width: 1 }, objectName: `win ${h}` });
-    text(s, h, { x: x + 0.3, y: 3.15, w: 3.2, h: 0.5, fontSize: 22, bold: true, color: C.sun });
-    text(s, b, { x: x + 0.3, y: 3.7, w: 3.2, h: 1.0, fontSize: 15, color: C.white });
-  });
-  text(s, 'No language model decides · Health data never counts · Consent per source and per partner pair · The customer has the last word', { x: 0.6, y: 5.2, w: 12, h: 0.5, fontSize: 14, color: '8EA2C2' });
-  text(s, 'You live the moment. Kate handles the rest.', { x: 0.6, y: 5.95, w: 12, h: 0.8, fontSize: 30, bold: true, color: C.white });
-  s.addNotes('"One agent, for millions of customers: automatic where it can, a person where it matters. Customers go from intent to action without searching. KBC shows up at the right moment, through the right channel. Partners get customers who gave consent, and work together for them. And trust is built in: no language model decides, health data never counts, the customer always has the last word. You live the moment. Kate handles the rest."');
+  text(s, 'One agent, for millions of customers', { x: 0.6, y: 2.6, w: 12, h: 1.0, fontSize: 44, bold: true, color: C.white });
+  text(s, 'Automatic where it can. A person where it matters.', { x: 0.6, y: 3.75, w: 12, h: 0.7, fontSize: 26, color: C.sky });
+  s.addNotes('"One agent, for millions of customers: automatic where it can, a person where it matters. Customers go from intent to action without searching. KBC shows up at the right moment, through the right channel. Partners get customers who gave consent, and work together for them. And trust is built in: no language model decides, health data never counts, the customer always has the last word."');
 }
 {
   const s = dark('Closing');
-  brand(s);
-  text(s, 'Questions?', { x: 0.6, y: 2.6, w: 12, h: 1.3, fontSize: 60, bold: true, color: C.white });
-  text(s, 'KBC Momentum · In4matics', { x: 0.6, y: 4.0, w: 12, h: 0.5, fontSize: 20, color: C.sky });
-  s.addNotes('Q&A: the backup clips after this slide show the rest of the demo.');
+  text(s, 'You live the moment.\nKate handles the rest.', { x: 0.6, y: 2.2, w: 12, h: 1.9, fontSize: 48, bold: true, color: C.white });
+  text(s, 'Questions?', { x: 0.6, y: 4.5, w: 12, h: 0.7, fontSize: 28, color: C.sky });
+  s.addNotes('"You live the moment. Kate handles the rest." Then the questions.');
 }
-
-// ---------- Backup clips for the Q&A ----------
-pres.addSection({ title: 'Backup clips' });
-clipSlide('Backup clips', {
-  clip: 'tom-ask', who: 'tom', journey: 'Backup · Tom & Lien',
-  title: 'Kate asks first, then arranges it all',
-  points: ['"Klopt dat?": nothing happens without their yes', '4 things already in order, 5 arranged with one tap'],
-  consent: 'Only sources they allowed · never health data',
-  notes: 'Backup clip: Kate asks, Tom confirms, the birth checklist runs.',
-});
-clipSlide('Backup clips', {
-  clip: 'jonas-ai', who: 'jonas', journey: 'Backup · Jonas',
-  title: 'His own AI shares the moment',
-  points: ['Through KBC\'s MCP server: share, read, revoke, nothing more', 'Only the moment and a phase, never the conversation'],
-  consent: 'Shared only after Jonas asked for it',
-  notes: 'Backup clip: Jonas asks his own AI (ChatGPT look, Claude behind it) and it shares the moment through MCP.',
-});
-clipSlide('Backup clips', {
-  clip: 'jonas-co2', who: 'jonas', journey: 'Backup · Jonas',
-  title: 'The network shows why',
-  points: ['CO2 insight is suggested because Encon, Kube and Sweco all point there', 'The adviser sends it with a personal note'],
-  consent: 'Encon, Kube and Billit share data because Jonas switched them on',
-  notes: 'Backup clip: the full-screen network graph, the reasoning lines behind CO2 insight, sending it to the app.',
-});
-clipSlide('Backup clips', {
-  clip: 'jonas-yes', who: 'jonas', journey: 'Backup · Jonas',
-  title: 'Two proposals, two yeses',
-  points: ['The CO2 insight from his adviser', 'Billit and Kube working together for him'],
-  consent: 'Data flows between partners only after his yes',
-  notes: 'Backup clip: the proposals pop up in Jonas\'s app and he agrees to both.',
-});
 
 (async () => {
   await pres.writeFile({ fileName: DECK });

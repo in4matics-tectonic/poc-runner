@@ -23,21 +23,25 @@ TIMING = """<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="ne
 
 
 def main(deck: Path) -> None:
-    clips = {}
     import json
-    for v in json.loads((deck.parent / 'video-slides.json').read_text()):
-        clips[v['index']] = v['ms']
+    slides = json.loads((deck.parent / 'video-slides.json').read_text())
+    clips = {v['index']: v['ms'] for v in slides}
+    hidden = {v['index'] for v in slides if v.get('hidden')}
     tmp = Path(tempfile.mkdtemp())
     with zipfile.ZipFile(deck) as z:
         z.extractall(tmp)
     for index, ms in clips.items():
         slide = tmp / 'ppt' / 'slides' / f'slide{index}.xml'
         xml = slide.read_text(encoding='utf-8')
-        m = re.search(r'<p:cNvPr id="(\d+)" name="clip [^"]+"', xml)
+        # The video itself (named "clip <scene>"), never the frame behind it
+        m = re.search(r'<p:cNvPr id="(\d+)" name="clip [a-z-]+"[^>]*>\s*<a:hlinkClick[^>]*ppaction://media', xml)
         if not m or '<p:timing>' in xml:
-            continue
+            raise SystemExit(f'slide{index}: no video shape found')
         timing = TIMING.format(ms=ms, spid=m.group(1))
         xml = xml.replace('</p:clrMapOvr>', '</p:clrMapOvr>' + timing, 1)
+        # Slides that don't fit the 3-minute run stay in the story, hidden (Slide Show skips them)
+        if index in hidden and ' show="0"' not in xml:
+            xml = re.sub(r'<p:sld\b', '<p:sld show="0"', xml, count=1)
         slide.write_text(xml, encoding='utf-8')
     out = deck.with_suffix('.tmp.pptx')
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -48,7 +52,7 @@ def main(deck: Path) -> None:
                 z.write(f, f.relative_to(tmp).as_posix())
     shutil.move(out, deck)
     shutil.rmtree(tmp)
-    print(f'{deck}: autoplay on {len(clips)} clips')
+    print(f'{deck}: autoplay on {len(clips)} clips, {len(hidden)} hidden')
 
 
 if __name__ == '__main__':

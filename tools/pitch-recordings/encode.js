@@ -12,6 +12,8 @@ fs.mkdirSync(OUT, { recursive: true });
 const rel = (p) => path.relative(ROOT, p);
 // Phone clips stay narrow, back office and chat get a wider frame
 const WIDTH = { 'tom-ask': 720, 'tom-offer': 720, 'jonas-yes': 720, 'jonas-ai': 1440 };
+// A little faster where nothing is lost: the typing in the chat, the note typed in the dialog
+const SPEED = { 'jonas-ai': 1.4, 'jonas-pair': 1.25, 'tom-ask': 1.3, 'jonas-yes': 1.2 };
 
 const names = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(RAW);
 for (const name of names) {
@@ -20,6 +22,7 @@ for (const name of names) {
   const width = WIDTH[name] ?? 1600;
   const filters = [];
   if (crop) filters.push(`crop=iw*${crop.w}/${crop.vw}:ih*${crop.h}/${crop.vh}:iw*${crop.x}/${crop.vw}:ih*${crop.y}/${crop.vh}`);
+  if (SPEED[name]) filters.push(`setpts=PTS/${SPEED[name]}`);
   filters.push(`scale=${width}:-2:flags=lanczos`, 'fps=30', 'format=yuv420p');
   const video = path.join(OUT, `${name}.mp4`);
   ffmpeg(['-f', 'concat', '-safe', '0', '-i', rel(path.join(dir, 'frames.txt')), '-vf', filters.join(','),

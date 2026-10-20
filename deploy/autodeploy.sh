@@ -17,7 +17,7 @@ LOCAL_SERVICES=(chat gateway gate caddy)
 # Anything not listed gets the full deploy, the safe default.
 needs() {
   case "$1" in
-    *.md | .gitignore | .env.example | run.sh | deploy/bootstrap.sh | deploy/autodeploy.sh | gateway/public/* | gate/*) ;;
+    *.md | .gitignore | .env.example | run.sh | deploy/bootstrap.sh | deploy/autodeploy.sh | gateway/public/* | gate/* | tools/*) ;;
     gateway/nginx.conf.template) echo restart:gateway ;;
     deploy/Caddyfile) echo restart:caddy ;;
     chat/*) echo build:chat ;;
