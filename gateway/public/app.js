@@ -239,15 +239,22 @@ async function resetAll() {
 resetBtn.onclick = resetAll;
 
 // ---------- service status ----------
-// Probed through the gateway (same origin), so we see real status codes
+// Probed through the gateway (same origin), so we see real status codes. One slow or lost probe isn't an outage:
+// over a far or flaky network a request can take seconds, and a deploy restarts the gateway for a second. Only
+// DOWN_AFTER failed probes in a row count as down, so a pane isn't reloaded for a blip.
 const SERVICES = ['app', 'backoffice', 'chat', 'mcp', 'backend'];
+const DOWN_AFTER = 3;
 const lastState = {};
+const fails = {};
 async function check(svc) {
-  let state = 'down';
+  let ok = false;
   try {
-    const res = await fetch(`/status/${svc}`, { cache: 'no-store', signal: AbortSignal.timeout(3000) });
-    if (res.ok) state = 'up';
+    const res = await fetch(`/status/${svc}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    ok = res.ok;
   } catch {}
+  fails[svc] = ok ? 0 : (fails[svc] ?? 0) + 1;
+  const state = ok ? 'up' : fails[svc] >= DOWN_AFTER ? 'down' : lastState[svc];
+  if (!state) return; // the very first probes failed: wait for more before saying anything
   for (const el of document.querySelectorAll(`[data-svc="${svc}"]`)) {
     el.dataset.state = state;
     el.title = `${svc}: ${state === 'up' ? 'draait' : 'niet bereikbaar'}`;

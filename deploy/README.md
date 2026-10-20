@@ -5,7 +5,7 @@ The VM runs the same compose stack with [docker-compose.vm.yml](../docker-compos
 - **Caddy** serves HTTPS on 80/443 with certificates from Let's Encrypt (ZeroSSL as fallback): the showcase on `https://<domain>`, and the parts on `app.`, `backoffice.`, `chat.` and `api.<domain>`.
 - **Gate:** one shared password (`in4matics-must-win`, hardcoded in `docker-compose.vm.yml`) protects every host. Logging in once sets a cookie for the base domain that's valid for 30 days.
 - **No domain needed:** the default is `<external-ip-with-dashes>.sslip.io`, a public wildcard DNS name that resolves to the IP inside it.
-- **Auto-deploy:** a systemd timer runs [autodeploy.sh](autodeploy.sh) every 2 minutes. When `poc-runner` changes, it pulls and rebuilds everything. When `main` of backend, mcp, mobile-app or backoffice moves on, it rebuilds only that service at that exact commit. A failed build leaves the running version up. There are no GitHub secrets or webhooks: the repos are public, so the VM only reads them.
+- **Auto-deploy:** a systemd timer runs [autodeploy.sh](autodeploy.sh) every 2 minutes. When `poc-runner` changes, it pulls and acts only on the files that changed: docs and the showcase page need nothing, the gateway or Caddy config a restart of that one container, `chat/` a rebuild of chat, anything else (compose files, …) the full deploy. Nothing restarts that didn't change, because every restart reloads the panes of everyone watching. When `main` of backend, mcp, mobile-app or backoffice moves on, it rebuilds only that service at that exact commit. A failed build leaves the running version up. There are no GitHub secrets or webhooks: the repos are public, so the VM only reads them.
 
 ## One-time setup
 
