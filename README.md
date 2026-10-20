@@ -17,6 +17,15 @@ Open **http://localhost:7000**.
 
 Shortcuts work when the showcase page has focus (not while you're typing inside a part). Each view has its own URL (`#overview`, `#app`, `#backoffice`, `#chat`), so you can link straight to one. Switching never reloads a part, so logins and chats stay where they were.
 
+## Kiosk mode (for the stand)
+
+Open **http://localhost:7000/kiosk** (or the **Kiosk** link in the top bar). It's an attract loop for passers-by: big taglines next to the real customer app, live, playing one life moment by itself in about 75 seconds. Signals come in, Kate asks "Klopt dit?", the customer says yes, the proposal unlocks, the customer revokes it, and the loop starts again.
+
+- **No LLM, no cost.** It never loads the chat pane, and every step is a plain backend call: demo reset, the demo clock, share, confirm, revoke. The app can't be clicked, so nobody opens Kate's chat inside it either.
+- **Shows little.** No backoffice, no architecture, no signal labels (they're blurred chips, sensitive ones only a 🔒). Just the moment, the phase and the app.
+- **It drives the shared demo state.** Every loop starts with a demo reset. Don't run it next to a live demo on the same backend, or open **`/kiosk?drive=0`** there: that one only follows whatever the demo is doing.
+- `Esc` goes back to the showcase, `f` toggles fullscreen, and the cursor hides when idle. For a dedicated screen: `chromium --kiosk http://localhost:7000/kiosk`. Works on landscape and portrait screens.
+
 ## What runs
 
 | Service | Source | URL |
