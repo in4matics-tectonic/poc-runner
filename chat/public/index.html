@@ -44,6 +44,7 @@
 
   /* Kate: the KBC Mobile header */
   body[data-app="kate"] header.bar { justify-content: space-between; border-bottom: 1px solid var(--line); padding: 10px 14px; }
+  body[data-app="kate"] #hReset { margin-left: auto; }
   body[data-app="kate"] .brand { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; }
   .icon-btn { background: none; border: 0; color: var(--accent); font-size: 22px; line-height: 1; width: 36px; height: 36px; cursor: pointer; border-radius: 50%; }
   .icon-btn:hover { background: #eef6fc; }
@@ -208,6 +209,8 @@ const APPS = ['chatgpt', 'gemini', 'claude', 'kate'];
 const params = new URLSearchParams(location.search);
 const APP = APPS.includes(params.get('app')) ? params.get('app') : 'kate';
 document.body.dataset.app = APP;
+// ?exit=0 (or false/no/hide) hides the exit (log out) button, e.g. when the host page has its own way out
+const SHOW_EXIT = !['0', 'false', 'no', 'hide'].includes((params.get('exit') ?? '').toLowerCase());
 const KEY = 'poc-chat.session';
 
 const KATE_LOGO = `<svg class="kav" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#bfe3f6"/><circle cx="50" cy="50" r="42" fill="#e3f3fb"/><circle cx="50" cy="50" r="36" fill="#fff"/>
@@ -267,7 +270,8 @@ function renderHeader() {
     $('hAvatar').textContent = name().slice(0, 1);
   }
   const loggedIn = Boolean(session);
-  for (const id of ['hLogout', 'hReset']) $(id).classList.toggle('hidden', !loggedIn);
+  $('hLogout').classList.toggle('hidden', !loggedIn || !SHOW_EXIT);
+  $('hReset').classList.toggle('hidden', !loggedIn);
   if ($('hAvatar')) $('hAvatar').classList.toggle('hidden', !loggedIn);
   bar.querySelector('.chip-conn')?.classList.toggle('hidden', !loggedIn);
   $('hLogout').onclick = logout;
