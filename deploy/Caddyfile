@@ -1,4 +1,6 @@
-# Public entry point on the VM: HTTPS for the showcase and one subdomain per part, all behind the shared password.
+# Public entry point on the VM: HTTPS for the showcase and one subdomain per part.
+# The shared-password gate is OFF for now (open demo for the jury). To turn it back on, add `import gate` as the
+# first line of each site block below (and inside the `handle` of the main domain).
 # POC_DOMAIN is e.g. 34-75-1-2.sslip.io (or your own domain with a wildcard DNS record).
 
 (gate) {
@@ -12,27 +14,22 @@
 		reverse_proxy gate:3000
 	}
 	handle {
-		import gate
 		reverse_proxy gateway:80
 	}
 }
 
 app.{$POC_DOMAIN} {
-	import gate
 	reverse_proxy app:80
 }
 
 backoffice.{$POC_DOMAIN} {
-	import gate
 	reverse_proxy backoffice:80
 }
 
 chat.{$POC_DOMAIN} {
-	import gate
 	reverse_proxy chat:3000
 }
 
 api.{$POC_DOMAIN} {
-	import gate
 	reverse_proxy backend:3000
 }

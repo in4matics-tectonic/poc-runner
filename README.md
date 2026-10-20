@@ -8,7 +8,7 @@ Starts the whole Kate Studio PoC with one command and shows it on one page: the 
 
 Open **http://localhost:7000**.
 
-**Live:** [104-196-54-37.sslip.io](https://104-196-54-37.sslip.io/) (behind the shared site password), kiosk at [/kiosk](https://104-196-54-37.sslip.io/kiosk).
+**Live:** [104-196-54-37.sslip.io](https://104-196-54-37.sslip.io/) (open for now: the site password is switched off in `deploy/Caddyfile`), kiosk at [/kiosk](https://104-196-54-37.sslip.io/kiosk).
 
 | Key / action | Does |
 | --- | --- |
