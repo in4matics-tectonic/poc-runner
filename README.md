@@ -8,6 +8,8 @@ Starts the whole Kate Studio PoC with one command and shows it on one page: the 
 
 Open **http://localhost:7000**.
 
+**Live:** [104-196-54-37.sslip.io](https://104-196-54-37.sslip.io/) (behind the shared site password), kiosk at [/kiosk](https://104-196-54-37.sslip.io/kiosk).
+
 | Key / action | Does |
 | --- | --- |
 | `0` / `Esc` | Overview (all parts + architecture) |
@@ -19,7 +21,7 @@ Shortcuts work when the showcase page has focus (not while you're typing inside 
 
 ## Kiosk mode (for the stand)
 
-Open **http://localhost:7000/kiosk** (or the **Kiosk** link in the top bar). It's an attract loop for passers-by: big taglines next to the real customer app, live, playing one life moment by itself in about 75 seconds. Signals come in, Kate asks "Klopt dit?", the customer says yes, the proposal unlocks, the customer revokes it, and the loop starts again.
+Open **http://localhost:7000/kiosk**, live at [104-196-54-37.sslip.io/kiosk](https://104-196-54-37.sslip.io/kiosk) (or the **Kiosk** link in the top bar). It's an attract loop for passers-by: big taglines next to the real customer app, live, playing one life moment by itself in about 75 seconds. Signals come in, Kate asks "Klopt dit?", the customer says yes, the proposal unlocks, the customer revokes it, and the loop starts again.
 
 - **No LLM, no cost.** It never loads the chat pane, and every step is a plain backend call: demo reset, the demo clock, share, confirm, revoke. The app can't be clicked, so nobody opens Kate's chat inside it either.
 - **Shows little.** No backoffice, no architecture, no signal labels (they're blurred chips, sensitive ones only a 🔒). Just the moment, the phase and the app.
@@ -71,4 +73,4 @@ State lives in memory. The **Reset demo** button on the showcase page puts every
 
 ## Deploying
 
-For the public VM with HTTPS, a shared site password and automatic deploys on every push, see [deploy/README.md](deploy/README.md).
+The public VM runs at **https://104-196-54-37.sslip.io/**, with the parts on `app.`, `backoffice.`, `chat.` and `api.104-196-54-37.sslip.io`. For the setup of that VM with HTTPS, a shared site password and automatic deploys on every push, see [deploy/README.md](deploy/README.md).
