@@ -4,7 +4,7 @@
 //   - kate: Kate, the assistant in KBC Mobile. She talks to the backend directly as KBC, asks "Klopt dit?"
 //     by herself once a moment reaches phase "vragen", and presents the plan after confirmation.
 //
-// The browser logs in as a customer (tom / lien / sarah); the backend token stays here, in an in-memory session.
+// The browser logs in as a customer (tom / lien / jonas); the backend token stays here, in an in-memory session.
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -20,18 +20,20 @@ const EFFORT = process.env.CHAT_EFFORT || 'low';
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
 const APPS = ['chatgpt', 'gemini', 'claude', 'kate'];
-const MOMENT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'een huis kopen', ZAAK_STARTEN: 'een zaak starten' };
+const MOMENT = {
+  GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'een huis kopen', TROUWEN: 'trouwen', ZAAK_STARTEN: 'een zaak starten', ZAAK_UITBREIDEN: 'de zaak uitbreiden',
+};
 const today = () => new Date().toISOString().slice(0, 10);
 
 const EIGEN_AI =
   () => `Je bent de persoonlijke AI-assistent van de gebruiker (niet van KBC). Je helpt met alledaagse vragen en plannen.
 De gebruiker heeft Kate Studio gekoppeld: via de tools kan je, enkel met uitdrukkelijk akkoord, een levensmoment
-(gezinsuitbreiding, huis kopen, zaak starten) en de fase ervan met KBC delen, lezen wat KBC voorbereidt, of het intrekken.
+(gezinsuitbreiding, huis kopen, trouwen, zaak starten, zaak uitbreiden) en de fase ervan met KBC delen, lezen wat KBC voorbereidt, of het intrekken.
 - Wees proactief: raakt het gesprek aan een van die levensmomenten, help dan eerst kort met de vraag en stel voor om het
   moment met KBC te delen, zodat Kate in KBC Mobile alles kan klaarzetten. Zeg wat gedeeld wordt (enkel moment en fase).
 - Eindig ELK antwoord met 1 tot 3 actieknoppen, elk op een eigen regel helemaal onderaan, in exact dit formaat:
   [[delen:MOMENT:fase]] om een moment (of een nieuwe, concretere fase) te delen, of [[intrekken:MOMENT]] om een gedeeld moment in te trekken.
-  MOMENT = GEZINSUITBREIDING, HUIS_KOPEN of ZAAK_STARTEN; fase = orienterend, plannend of beslist. Kies de meest relevante
+  MOMENT = GEZINSUITBREIDING, HUIS_KOPEN, TROUWEN, ZAAK_STARTEN of ZAAK_UITBREIDEN; fase = orienterend, plannend of beslist. Kies de meest relevante
   volgende stappen voor dit gesprek. De app toont ze als knoppen; noem de markeringen zelf nooit in je tekst.
 - Een klik op zo'n knop komt binnen als bericht van de gebruiker ("Ja, deel … met KBC." / "Trek … in bij KBC.") en geldt als
   uitdrukkelijk akkoord: voer de actie dan meteen uit, zonder nog eens te vragen. Hetzelfde geldt als de gebruiker zelf
@@ -253,9 +255,9 @@ async function chatTurn(session, app, text) {
 
 const FASEN = ['orienterend', 'plannend', 'beslist'];
 const FASE_LABEL = { orienterend: 'we denken erover na', plannend: 'we zijn bezig', beslist: 'het is zeker' };
-const ACTIE = /\[\[(delen|intrekken):(GEZINSUITBREIDING|HUIS_KOPEN|ZAAK_STARTEN)(?::(orienterend|plannend|beslist))?\]\]/g;
+const ACTIE = /\[\[(delen|intrekken):(GEZINSUITBREIDING|HUIS_KOPEN|TROUWEN|ZAAK_STARTEN|ZAAK_UITBREIDEN)(?::(orienterend|plannend|beslist))?\]\]/g;
 
-const KORT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'huis kopen', ZAAK_STARTEN: 'zaak starten' };
+const KORT = { GEZINSUITBREIDING: 'gezinsuitbreiding', HUIS_KOPEN: 'huis kopen', TROUWEN: 'trouwen', ZAAK_STARTEN: 'zaak starten', ZAAK_UITBREIDEN: 'zaak uitbreiden' };
 const deelActie = (moment, fase) => ({
   label: `Deel met KBC: ${KORT[moment]} · ${FASE_LABEL[fase]}`,
   text: `Ja, deel "${KORT[moment]}" (${FASE_LABEL[fase]}) met KBC.`,
