@@ -1,0 +1,12 @@
+{
+  "name": "kbc-momentum-pitch-recordings",
+  "private": true,
+  "description": "Records the short single-app clips for the finals presentation from the local PoC stack",
+  "scripts": {
+    "record": "node record.js"
+  },
+  "devDependencies": {
+    "playwright-core": "1.58.2",
+    "pptxgenjs": "^3.12.0"
+  }
+}

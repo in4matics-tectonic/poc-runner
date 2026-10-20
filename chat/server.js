@@ -184,7 +184,8 @@ function claude(params, options) {
     {
       model: MODEL,
       max_tokens: 16000,
-      output_config: { effort: EFFORT },
+      // Haiku has no effort setting (a fast model for live demos); every other model gets it
+      ...(/haiku/.test(MODEL) ? {} : { output_config: { effort: EFFORT } }),
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       ...params,

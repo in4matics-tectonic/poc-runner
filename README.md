@@ -105,6 +105,13 @@ See [.env.example](.env.example): `JWT_SECRET`, `ANTHROPIC_API_KEY`, optional `C
 
 State lives in memory. The **Reset demo** button on the showcase page puts every part back at the start: it resets the backend (`POST /v1/demo/reset` as `adviseur`: demo clock, signals, consents, audit), clears every chat conversation, and reloads each pane; logins stay. To wipe everything, recreate both together, because the MCP server lives in the backend's network: `docker compose up -d --force-recreate backend mcp`.
 
+## Unfinished (PoC)
+
+- State is in memory in every part: a restart of the backend resets the demo.
+- One shared site password guards the whole VM, and every demo user has the same password.
+- The own-AI chat and Kate's free-text answers need `ANTHROPIC_API_KEY`; without it the tours make the same backend calls themselves.
+- The pitch tour, the guided tour and the kiosk all drive the same demo state: run one at a time per backend.
+
 ## Deploying
 
 The public VM runs at **https://104-196-54-37.sslip.io/**, with the parts on `app.`, `backoffice.`, `chat.` and `api.104-196-54-37.sslip.io`. For the setup of that VM with HTTPS, a shared site password and automatic deploys on every push, see [deploy/README.md](deploy/README.md).

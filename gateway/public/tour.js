@@ -1,13 +1,19 @@
-// Guided tour of the PoC. It walks through one life moment from first signal to proposal (and back), and every
-// step does something real: it moves the demo clock, lets Lien's own AI share through MCP, answers Kate, ...
+// Guided tour of the PoC, aligned with the finals pitch: Tom & Lien, whom KBC's agent hands to Kate fully
+// automatically, and Jonas, for whom the agent calls in an adviser who connects his partners in the network graph.
+// Every step does something real: it moves the demo clock, lets Jonas's own AI share through MCP, presses buttons
+// in the app and the back office, ...
 // Meanwhile the dock shows what the backend holds right now and every call as a packet on the architecture map,
 // and each pane flashes when the change reaches it. The panes are cross-origin iframes: the tour never reads
 // them, it talks to them through a small postMessage bridge (log in, switch page, type a message, press a button)
 // and they tell it what happened. Uses app.js: go, setChatApp, chatApp, panels, fit, url, api, resetDemo.
 
 (() => {
-const KLANT = 'K-2024-0417';
-const MOMENT_ID = 'GEZINSUITBREIDING';
+const TOM = { klant: 'K-2024-0417', moment: 'GEZINSUITBREIDING', name: 'Tom & Lien', user: 'tom', label: 'Family growth' };
+const JONAS = { klant: 'K-2022-0311', moment: 'ZAAK_UITBREIDEN', name: 'Jonas · Stroomvaart', user: 'jonas', label: 'Business expansion' };
+const CO2 = 'product:business-co2-insights-and-sector-comparison';
+const PAIR = 'koppeling:billit~kube';
+/** The customer the tour follows right now (the live panel shows their moment). */
+let F = TOM;
 const POLL_MS = 1500;
 
 const $t = (sel, root = document) => root.querySelector(sel);
@@ -37,7 +43,10 @@ const S = {
   chatBusy: false,
   kate: { vraag: false, plan: false },
   seen: { gedeeld: 0, ingetrokken: 0, via: 'mcp' }, // audit ts (ms) of the last share / revoke, and how
-  direct: 0, // when the tour itself made a call as the customer (no LLM): the audit shows it as tom
+  direct: 0, // when the tour itself made a call as the customer (no LLM)
+  agent: null, // the agent's decision for the followed moment
+  kansen: [], // offers sent to the followed customer
+  appUser: 'tom', // who the app should show: Tom & Lien first, Jonas in his last steps
   stepAt: 0,
   running: null,
   err: null,
@@ -66,7 +75,7 @@ async function playUntil(stop) {
 /** The no-LLM fallback: the same call the MCP tool makes, straight to the backend as the customer */
 function direct(method, path, body) {
   S.direct = Date.now();
-  return api('tom', method, path, body);
+  return api(F.user, method, path, body);
 }
 
 /** Switches the chat pane; it reloads, so wait for its bridge to say hello again before talking to it */
@@ -85,224 +94,273 @@ async function askAi(text) {
   await until(() => !S.chatBusy, 90000);
 }
 
+const kansVan = (link) => S.kansen.find((k) => k.link.id === link);
+const agentLine = () => (S.agent ? `app <b>${pct(S.agent.engagement.app)}</b> · adviser <b>${pct(S.agent.engagement.adviseur)}</b>` : '');
+async function playTo(week) {
+  for (let n = 0; n < 10 && S.week < week; n++) {
+    await api('adviseur', 'POST', '/demo/volgende');
+    await refresh();
+    if (S.week < week) await wait(1700);
+  }
+}
+/** Sends a possible link (or partner pair) to Jonas's app through the back office's own dialog, typed visibly. */
+async function sendFromGraph(link, note) {
+  send('backoffice', { kateStudio: 'kans', link });
+  await wait(900);
+  send('backoffice', { kateStudio: 'kansTyp', tekst: note });
+  await wait(note.length * 25 + 900);
+  send('backoffice', { kateStudio: 'kansVerstuur' });
+  await until(() => kansVan(link), 8000);
+  await wait(1500);
+  send('backoffice', { kateStudio: 'kansSluit' });
+}
+/** The customer says yes in the app; whatever the app didn't answer, the same call as the customer. */
+async function sayYes(times = 1) {
+  for (let i = 0; i < times; i++) {
+    send('app', { kateStudio: 'kans', answer: 'interesse' });
+    await wait(2600);
+  }
+  await refresh();
+  for (const k of S.kansen.filter((x) => x.status === 'nieuw' || x.status === 'gezien')) {
+    await api(F.user, 'PUT', `/klanten/${F.klant}/kansen/${k.id}`, { status: 'interesse' });
+  }
+}
+
 const STEPS = [
   {
-    title: 'Welkom bij Kate Studio',
+    title: 'Welcome to KBC Momentum',
     mode: 'overview',
+    focus: TOM,
     spot: ['app', 'backoffice', 'chat'],
     body: () => `
-      <p>Drie schermen, één backend. Links de <b>KBC Mobile-app</b> van Tom, in het midden de <b>backoffice</b> van de adviseur,
-      rechts de <b>chat</b>: Lien's eigen AI (ChatGPT, Gemini, Claude) en Kate, de assistent van KBC.</p>
-      <p>Ze praten nooit met elkaar, enkel met de backend. Alles in deze tour is echt: echte API-calls, echte scores, en elk scherm
-      pikt de wijziging zelf op.</p>
+      <p>Three screens, one backend: the <b>KBC Mobile app</b>, the adviser's <b>back office</b>, and the <b>chat</b>, a customer's own AI.
+      This tour follows the finals pitch: two customers, and one AI agent that picks the channel.</p>
+      <p>Everything is real: real API calls, real scores, and every screen picks up the change by itself.</p>
       <ul class="check">
-        ${check(S.online, 'Backend bereikbaar', S.online ? `demoweek ${S.week}` : '')}
-        ${['app', 'backoffice', 'chat'].map((p) => check(S.users[p], `${NAMES[p][0].toUpperCase()}${NAMES[p].slice(1)}`, S.users[p] ? `aangemeld als <code>${escT(S.users[p])}</code>` : S.users[p] === null ? 'niet aangemeld' : 'wacht op het scherm…')).join('')}
+        ${check(S.online, 'Backend reachable', S.online ? `demo week ${S.week}` : '')}
+        ${check(S.users.app, 'App', S.users.app ? `as <code>${escT(S.users.app)}</code>` : 'waiting…')}
+        ${check(S.users.backoffice, 'Back office', S.users.backoffice ? `as <code>${escT(S.users.backoffice)}</code>` : 'waiting…')}
+        ${check(S.users.chat === 'jonas', 'Own AI', S.users.chat ? `as <code>${escT(S.users.chat)}</code>` : 'waiting…')}
       </ul>`,
     actions: () => [
       {
-        label: 'Zet de demo klaar',
-        busy: 'Alles terugzetten en aanmelden…',
+        label: 'Set up the demo',
+        busy: 'Resetting and logging in…',
         run: async () => {
-          S.kate = { vraag: false, plan: false };
           S.wantLogin = true;
+          S.appUser = 'tom';
           for (const p of PARTS) S.users[p] = undefined;
+          send('backoffice', { kateStudio: 'graaf', vol: false });
           await resetDemo();
           useChat('chatgpt');
           await refresh();
-          await until(() => PARTS.every((p) => S.users[p]), 15000);
+          await until(() => S.users.app && S.users.backoffice && S.users.chat === 'jonas', 20000);
         },
       },
     ],
-    done: () => S.online && PARTS.every((p) => S.users[p]) && S.week === 0 && !S.m,
+    done: () => S.online && S.users.app && S.users.backoffice && S.users.chat === 'jonas' && S.week === 0,
   },
   {
-    title: 'Het begint bij Lien, in haar eigen AI',
-    mode: 'overview',
+    title: 'Tom & Lien: signals, with consent',
+    mode: 'backoffice',
+    focus: TOM,
+    bo: { page: 'klanten', klantId: TOM.klant },
+    spot: ['backoffice'],
+    highlight: 'score',
+    body: () => `
+      <p>Tom and Lien haven't told anyone yet. But from the sources <b>they allowed</b> (their account, their use of KBC Mobile,
+      their own AI) their bank sees a baby store, a childcare registration, a question to their own AI.</p>
+      <p>Health data never counts. The backend computes the score and phase, deterministically.
+      ${S.week ? `Now: week <b>${S.week}</b>, score <b>${pct(S.m?.score)}</b>, phase <b>${faseOf()}</b>.` : ''}</p>`,
+    notes: () => ({ backoffice: `Week ${S.week} · ${pct(S.m?.score)}` }),
+    actions: () => [{ label: '▶ Play until Kate may ask', busy: 'The demo clock runs…', hidden: faseAt('vragen'), run: () => playUntil(() => faseAt('vragen')) }],
+    done: () => faseAt('vragen'),
+  },
+  {
+    title: 'The agent decides: fully automatic',
+    mode: 'backoffice',
+    focus: TOM,
+    bo: { page: 'klanten', klantId: TOM.klant },
+    spot: ['backoffice'],
+    highlight: 'score',
+    body: () => `
+      <p>Now KBC's <b>agent</b> decides who approaches them: Kate in the app, or an adviser. It weighs the expected engagement per
+      channel from facts KBC already has, and shows its reasons in the <b>KBC Agent</b> card.</p>
+      <p>${S.agent ? `Its call: <b>${S.agent.kanaal === 'automatisch' ? 'automatic, Kate in the app' : 'an adviser'}</b> (${agentLine()}).` : 'Waiting for the agent…'}
+      Retail, standard products, very digital: no adviser needed. No language model decides this.</p>`,
+    notes: () => ({ backoffice: S.agent ? `Agent: ${S.agent.kanaal}` : '' }),
+    done: () => S.agent?.kanaal === 'automatisch',
+  },
+  {
+    title: 'Kate asks first',
+    mode: 'app',
+    focus: TOM,
+    spot: ['app'],
+    body: () =>
+      S.m?.bevestigd
+        ? '<p>Confirmed. The app, the back office and the agent all saw it within a second.</p>'
+        : '<p>Kate asks in the app: "Ik vermoed een gezinsuitbreiding. Klopt dat?" Nothing happens without a yes.</p>',
+    actions: () => [
+      {
+        label: 'Answer "Bevestigen"',
+        hidden: S.m?.bevestigd,
+        busy: 'Tom confirms…',
+        run: async () => {
+          send('app', { kateStudio: 'moment', answer: 'confirm' });
+          if (!(await until(() => S.m?.bevestigd, 5000))) await direct('POST', `/klanten/${F.klant}/momenten/${F.moment}/bevestig`);
+        },
+      },
+    ],
+    done: () => Boolean(S.m?.bevestigd),
+  },
+  {
+    title: 'Kate arranges it with one tap',
+    mode: 'app',
+    focus: TOM,
+    spot: ['app'],
+    body: () => `
+      <p>Four things are already in order. Kate arranges the rest with one tap: the mortgage cover, the hospital insurance, the
+      child benefit. And she doesn't push a new car: she checks whether the pram fits in the i4.</p>`,
+    actions: () => [
+      { label: 'Let Kate arrange everything', busy: 'Kate arranges…', run: async () => { send('app', { kateStudio: 'checklist', run: 'all' }); await wait(9000); } },
+    ],
+    done: () => true,
+  },
+  {
+    title: "The agent's own offer",
+    mode: 'app',
+    focus: TOM,
+    spot: ['app'],
+    body: () => {
+      const offer = S.kansen.find((k) => k.afzender === 'kate');
+      return offer
+        ? `<p>The agent went one step further on its own: <b>${escT(offer.link.naam)}</b>, straight into the app as a popup.
+           ${offer.status === 'interesse' ? 'Tom said yes. No person touched it.' : 'Say yes in the popup.'}</p>`
+        : '<p>Once the moment is confirmed and above 90% (phase <b>voorstel</b>), the agent sends an offer by itself. Play the clock on.</p>';
+    },
+    actions: () => [
+      { label: '▶ Play to week 20', busy: 'The demo clock runs…', hidden: S.week >= 20, run: async () => { send('app', { kateStudio: 'checklist', open: false }); await playTo(20); } },
+      { label: 'Say "Ja, graag!"', hidden: S.week < 20 || S.kansen.some((k) => k.afzender === 'kate' && k.status === 'interesse'), busy: 'Tom says yes…', run: () => sayYes(1) },
+    ],
+    done: () => S.kansen.some((k) => k.afzender === 'kate' && k.status === 'interesse'),
+  },
+  {
+    title: 'Jonas: his own AI shares the moment',
+    mode: 'chat',
+    focus: JONAS,
     chat: 'chatgpt',
     spot: ['chat'],
     highlight: 'map',
     body: () =>
       sharedNow()
-        ? `<p>Gedeeld. ${S.seen.via === 'mcp' ? "Lien's AI riep <code>share_life_moment</code> aan via de <b>MCP-server</b>" : 'Zonder LLM deed de tour dezelfde call als de MCP-tool'}; de backend maakte er één signaal van:
-           <b>${escT(lastShared()?.label ?? 'moment gedeeld')}</b>.</p>
-           <p>Score nu <b>${pct(S.m?.score)}</b>, fase <b>${faseOf()}</b>. Onder 40% doet niemand iets, niet de app, niet de adviseur, niet Kate.</p>`
-        : `<p>Lien vertelt haar eigen AI dat ze een tweede kindje plannen. Die AI is <b>niet van KBC</b>: via de MCP-server van Kate Studio kan hij
-           precies drie dingen: een moment delen, het plan lezen of het intrekken.</p>
-           <p>Hij deelt enkel het <i>moment en de fase</i>, nooit het gesprek zelf. Let op de kaart rechts: chat → MCP → backend.</p>`,
-    notes: () => ({ chat: !sharedNow() ? 'Lien typt hier' : S.seen.via === 'mcp' ? '✓ share_life_moment via MCP' : '✓ Gedeeld (zonder LLM)' }),
+        ? `<p>Shared. ${S.seen.via === 'mcp' ? "Jonas's AI called <code>share_life_moment</code> through the <b>MCP server</b>" : 'Without an LLM, the tour made the same call as the MCP tool'}.
+           Only the moment and a phase, never the conversation. Score now <b>${pct(S.m?.score)}</b>.</p>`
+        : `<p>Jonas runs Stroomvaart: electric inland shipping on the Scheldt. He asks his own AI (not KBC's) how to finance a
+           second ship, and explicitly lets it share the moment with KBC.</p>`,
     actions: () => [
+      { label: '▶ Play to week 20', busy: 'The demo clock runs…', hidden: S.week >= 20, run: () => playTo(20) },
       {
-        label: 'Laat Lien het vragen',
-        busy: S.chatBusy ? 'Claude denkt na en gebruikt de MCP-tools…' : 'Lien typt…',
-        hidden: sharedNow() || S.llm === false,
-        run: () => askAi('We plannen een tweede kindje, hopelijk volgend voorjaar. Je mag met KBC delen dat we dat aan het plannen zijn.'),
+        label: 'Let Jonas ask',
+        hidden: sharedNow() || S.llm === false || S.week < 20,
+        busy: S.chatBusy ? 'The AI uses the MCP tools…' : 'Jonas types…',
+        run: () => askAi('I want to have a second electric push boat built for Stroomvaart. How do I best finance it? Share "business expansion" (planning) with KBC.'),
       },
       {
-        label: 'Zeg "ja, deel het"',
-        kind: 'ghost',
-        hidden: sharedNow() || S.llm === false,
-        busy: 'Claude deelt via MCP…',
-        run: () => askAi('Ja, deel het maar.'),
-      },
-      {
-        label: 'Deel zonder LLM',
-        title: 'Dezelfde API-call die de MCP-tool share_life_moment doet, rechtstreeks als klant',
-        hidden: sharedNow() || S.llm !== false,
-        run: () => direct('POST', `/klanten/${KLANT}/momenten/delen`, { moment: MOMENT_ID, fase: 'plannend' }),
+        label: 'Share without LLM',
+        hidden: sharedNow() || S.llm !== false || S.week < 20,
+        run: () => direct('POST', `/klanten/${F.klant}/momenten/delen`, { moment: F.moment, fase: 'plannend' }),
       },
     ],
-    hint: () => (sharedNow() ? '' : S.llm === false ? 'Er is geen ANTHROPIC_API_KEY voor de chat: de knop doet dezelfde call als de MCP-tool.' : 'Of typ zelf iets in de chat. Vraagt de AI eerst om akkoord? Klik op "ja, deel het".'),
     done: sharedNow,
   },
   {
-    title: 'De tijd loopt: signalen komen binnen',
+    title: 'The agent calls in an adviser',
     mode: 'backoffice',
-    bo: { page: 'klanten', klantId: KLANT },
+    focus: JONAS,
+    bo: { page: 'klanten', klantId: JONAS.klant },
     spot: ['backoffice'],
     highlight: 'score',
     body: () => `
-      <p>De adviseur speelt de tijdlijn af. Elke week komen er signalen binnen uit bronnen waarvoor Tom en Lien toestemming gaven:
-      Doccle, een geofence, rekeningverrichtingen.</p>
-      <p>De <b>backend</b> berekent score en fase, deterministisch. Geen LLM beslist hier iets.
-      ${S.week ? `Nu: week <b>${S.week}</b>, score <b>${pct(S.m?.score)}</b>, fase <b>${faseOf()}</b>.` : ''}</p>`,
-    notes: () => ({ backoffice: `Demoweek ${S.week} · ${pct(S.m?.score)}` }),
-    actions: () => [
-      { label: '▶ Speel af tot fase "vragen"', busy: 'De demo-klok loopt…', hidden: step3Done(), run: () => playUntil(step3Done) },
-      { label: 'Eén week verder', kind: 'ghost', hidden: step3Done(), run: () => api('adviseur', 'POST', '/demo/volgende') },
-    ],
-    done: () => step3Done(),
+      <p>For Jonas the agent decides differently: a business customer, a big investment. He'll engage more with a person.
+      ${S.agent ? `Its call: <b>${S.agent.kanaal === 'adviseur' ? 'adviser in the loop' : 'automatic'}</b> (${agentLine()}).` : ''}</p>
+      <p>The adviser gets a task in the <b>KBC Agent</b> card, with the agent's suggestions: CO2 insight, and Billit + Kube.</p>`,
+    done: () => S.agent?.kanaal === 'adviseur',
   },
   {
-    title: 'Twee blikken op dezelfde data',
-    mode: 'overview',
-    spot: ['backoffice', 'app'],
-    highlight: 'split',
-    body: () => {
-      const n = S.m?.signalenDetail?.length ?? 0;
-      const g = S.k?.andereSignalen ?? 0;
-      return `
-      <p>Zelfde klant, zelfde seconde, twee antwoorden van de backend. De adviseur ziet <b>${n} signalen</b>, waarvan <b>${g} gevoelig</b> 🔒.
-      Tom en Lien zien enkel de niet-gevoelige redenen, plus <i>"${g} andere signalen waarvoor je toestemming gaf"</i>.</p>
-      <p>Het filter zit in de backend, niet in de app. Doccle wordt enkel op metadata geclassificeerd: de inhoud van een document gaat nergens heen.</p>`;
-    },
-    notes: () => ({
-      backoffice: `Adviseur: ${S.m?.signalenDetail?.length ?? 0} signalen`,
-      app: `Tom: ${S.k?.waarom?.length ?? 0} redenen + ${S.k?.andereSignalen ?? 0} verborgen`,
-    }),
-    actions: () => [{ label: '{ } Toon de ruwe JSON', kind: 'ghost', run: showJson }],
-    done: () => true,
-  },
-  {
-    title: 'Kate vraagt het zelf',
-    mode: 'overview',
-    chat: 'kate',
-    spot: ['chat', 'app'],
-    body: () =>
-      S.m?.bevestigd
-        ? `<p>Bevestigd. ${faseOf() === 'voorstel' ? 'De score zat al boven 90%: het voorstel staat meteen klaar.' : `De score zit op <b>${pct(S.m?.score)}</b>: nog geen voorstel, want daarvoor moet het ook boven 90%.`}
-           Tom's app zag de bevestiging binnen de seconde, ook al gebeurde ze in Kate.</p>`
-        : `<p>De score zit boven 70%: fase <b>vragen</b>. Kate merkt dat zelf op en vraagt of het klopt. Ze feliciteert nog niet en noemt geen signalen.</p>
-           <p>Kate schrijft enkel de zin; wanneer ze iets vraagt, bepaalt de backend. Pas na <i>"Ja, klopt"</i> gaat er iets verder.</p>`,
-    notes: () => ({ chat: S.m?.bevestigd ? '✓ Ja, klopt' : S.kate.vraag ? 'Kate vraagt: klopt dit?' : 'Kate meldt zich zo…' }),
-    actions: () => [
-      {
-        label: 'Antwoord "Ja, klopt"',
-        hidden: S.m?.bevestigd,
-        disabled: !S.kate.vraag,
-        busy: 'Lien bevestigt…',
-        run: async () => {
-          send('chat', { kateStudio: 'answer', answer: 'Ja, klopt' });
-          await until(() => S.m?.bevestigd, 15000);
-        },
-      },
-    ],
-    hint: () => (S.m?.bevestigd ? '' : S.kate.vraag ? 'Of klik zelf op "Ja, klopt" in de chat of in de app.' : 'Wachten tot Kate zich meldt…'),
-    done: () => Boolean(S.m?.bevestigd),
-  },
-  {
-    title: 'Van moment naar voorstel',
-    mode: 'overview',
-    chat: 'kate',
-    spot: ['app', 'chat'],
-    highlight: 'score',
-    body: () =>
-      faseOf() === 'voorstel'
-        ? `<p><b>Voorstel.</b> Score ${pct(S.m?.score)} én bevestigd: de backend geeft nu <b>${S.k?.acties?.length ?? 0} acties</b> vrij aan de klant.
-           Producten die ze al hebben vallen weg. Kate stelt het plan voor met één actie vooraan; de app toont dezelfde acties.</p>`
-        : `<p>Bevestigd, maar de score zit nog op ${pct(S.m?.score)}. Pas bij <b>90% én bevestiging</b> springt het moment naar <b>voorstel</b>.
-           Tot dan krijgt de klant geen enkele actie te zien. Speel de tijdlijn verder.</p>`,
-    notes: () => ({
-      app: faseOf() === 'voorstel' ? `${S.k?.acties?.length ?? 0} acties ontgrendeld` : 'Nog geen acties',
-      chat: S.kate.plan ? 'Kate stelt het plan voor' : '',
-    }),
-    actions: () => [{ label: '▶ Speel af tot voorstel', busy: 'De demo-klok loopt…', hidden: faseOf() === 'voorstel', run: () => playUntil(() => faseOf() === 'voorstel') }],
-    done: () => faseOf() === 'voorstel',
-  },
-  {
-    title: 'Alles is gelogd',
+    title: 'The network: why CO2 insight',
     mode: 'backoffice',
-    bo: { page: 'audit' },
+    focus: JONAS,
+    bo: { page: 'klanten', klantId: JONAS.klant },
     spot: ['backoffice'],
-    highlight: 'feed',
     body: () => `
-      <p>Elke raadpleging van persoonsgegevens en elke wijziging komt in de <b>auditlog</b> van de backend: wie, wat, wanneer.
-      De adviseur ziet ze hier; de klant kan elk moment intrekken.</p>
-      <p>Rechts zie je dezelfde stroom live. Elke puls op de kaart is een echte call: de weg die hij nam, en wie hem deed.</p>`,
+      <p>The adviser opens Stroomvaart's network: ten ecosystems, his KBC loans, the partners he lets share data. The engine
+      suggests new links and shows why: Encon, Kube and Sweco all point to <b>CO2 insight</b>.</p>
+      ${kansVan(CO2) ? '<p><b>Sent</b> to Jonas\'s app, with a personal note.</p>' : ''}`,
+    actions: () => [
+      { label: 'Open the graph', kind: 'ghost', run: async () => { send('backoffice', { kateStudio: 'graaf', vol: true }); await wait(1500); send('backoffice', { kateStudio: 'knoop', id: CO2 }); } },
+      { label: 'Send it to Jonas', hidden: Boolean(kansVan(CO2)), busy: 'The adviser writes a note…', run: () => sendFromGraph(CO2, 'Shippers increasingly ask for CO2 figures. Your electric fleet turns that into an edge right away.') },
+    ],
+    done: () => Boolean(kansVan(CO2)),
+  },
+  {
+    title: 'Partners working together, for one customer',
+    mode: 'backoffice',
+    focus: JONAS,
+    bo: { page: 'klanten', klantId: JONAS.klant },
+    spot: ['backoffice'],
+    body: () => `
+      <p>Billit and Kube both work for Jonas, but not with each other. The violet line proposes they do: his shore-power
+      invoices in Billit become CO2 figures in Kube.</p>
+      <p>Data only flows between them after <b>Jonas's yes</b>, and he can switch it off any time.</p>`,
+    actions: () => [
+      { label: 'Select Billit', kind: 'ghost', run: async () => { send('backoffice', { kateStudio: 'graaf', vol: true }); await wait(1200); send('backoffice', { kateStudio: 'knoop', id: 'partner:billit' }); } },
+      { label: 'Propose Billit + Kube', hidden: Boolean(kansVan(PAIR)), busy: 'The adviser writes a note…', run: () => sendFromGraph(PAIR, 'Let Billit turn your shore-power invoices into CO2 figures in Kube: no more copying numbers.') },
+    ],
+    done: () => Boolean(kansVan(PAIR)),
+  },
+  {
+    title: 'Jonas says yes',
+    mode: 'app',
+    focus: JONAS,
+    spot: ['app'],
+    body: () => `
+      <p>Both proposals pop up in Jonas's app. ${S.users.app === 'jonas' ? '' : 'First the app switches to Jonas.'}</p>
+      <p>${S.kansen.filter((k) => k.status === 'interesse').length} of ${S.kansen.length} answered with a yes.</p>`,
+    actions: () => [
+      { label: "Open Jonas's app", kind: 'ghost', hidden: S.users.app === 'jonas', busy: 'Logging in as Jonas…', run: async () => { S.appUser = 'jonas'; send('app', { kateStudio: 'login', user: 'jonas' }); await until(() => S.users.app === 'jonas', 12000); } },
+      { label: 'Say yes to both', hidden: S.kansen.length > 0 && S.kansen.every((k) => k.status === 'interesse'), busy: 'Jonas says yes…', run: () => sayYes(2) },
+    ],
+    done: () => S.kansen.length > 0 && S.kansen.every((k) => k.status === 'interesse'),
+  },
+  {
+    title: 'The line turns solid',
+    mode: 'backoffice',
+    focus: JONAS,
+    bo: { page: 'klanten', klantId: JONAS.klant },
+    spot: ['backoffice'],
+    body: () => '<p>In KBC\'s network the violet line between Billit and Kube is now solid: two partners work together, for one customer.</p>',
+    actions: () => [{ label: 'Show it in the graph', kind: 'ghost', run: async () => { send('backoffice', { kateStudio: 'graaf', vol: true }); await wait(1200); send('backoffice', { kateStudio: 'knoop', id: 'partner:billit' }); } }],
     done: () => true,
   },
   {
-    title: 'De klant heeft het laatste woord',
+    title: 'That is KBC Momentum',
     mode: 'overview',
-    chat: 'chatgpt',
-    spot: ['app', 'backoffice', 'chat'],
-    highlight: 'score',
-    body: () =>
-      revokedNow() || (S.stepAt && !S.m)
-        ? `<p><b>Weg.</b> De backend wiste alle signalen van dit moment, ook de gevoelige. Geen score, geen fase, geen acties, ook niet voor de adviseur.
-           Kijk: elk scherm volgde vanzelf.</p>`
-        : `<p>Lien bedenkt zich en vraagt haar eigen AI om het moment in te trekken. Via MCP <code>revoke_moment</code> wist de backend
-           <b>alle signalen</b> van dit moment. Hou alle drie de schermen in het oog.</p>`,
-    notes: () =>
-      revokedNow()
-        ? { app: 'Moment verdwenen', backoffice: 'Signalen gewist', chat: S.seen.via === 'mcp' ? '✓ revoke_moment via MCP' : '✓ Ingetrokken (zonder LLM)' }
-        : { chat: 'Lien typt hier' },
-    actions: () => [
-      {
-        label: 'Laat Lien het intrekken',
-        hidden: revokedNow() || S.llm === false,
-        busy: S.chatBusy ? 'Claude trekt in via MCP…' : 'Lien typt…',
-        run: () => askAi('Trek het moment gezinsuitbreiding in bij KBC. Ik bevestig dat uitdrukkelijk.'),
-      },
-      { label: 'Zeg "ja, trek in"', kind: 'ghost', hidden: revokedNow() || S.llm === false, run: () => askAi('Ja, trek het maar in.') },
-      {
-        label: 'Trek in zonder LLM',
-        title: 'Dezelfde API-call die de MCP-tool revoke_moment doet, rechtstreeks als klant',
-        hidden: revokedNow() || S.llm !== false,
-        run: () => direct('DELETE', `/klanten/${KLANT}/momenten/${MOMENT_ID}`),
-      },
-    ],
-    done: () => revokedNow(),
-  },
-  {
-    title: 'Dat is Kate Studio',
-    mode: 'overview',
+    focus: JONAS,
     spot: [],
     body: () => `
       <ul class="recap">
-        <li><b>Van Next Best Offer naar Next Best Moment.</b> De bank ziet het moment, maar vraagt eerst.</li>
-        <li><b>Eén bron van waarheid.</b> Score en fase komen uit de backend; LLM's schrijven enkel de zinnen.</li>
-        <li><b>Privacy by design.</b> Gevoelige signalen nooit naar de klant, acties pas na bevestiging, alles gelogd.</li>
-        <li><b>Open.</b> De eigen AI van de klant praat mee via MCP: delen, lezen, intrekken. Nooit betalen.</li>
+        <li><b>From Next Best Offer to Next Best Moment.</b> The bank sees the moment, but asks first.</li>
+        <li><b>One agent, millions of customers.</b> Automatic where it can, a person where it matters.</li>
+        <li><b>A network, not a list.</b> Partners work together for a customer, with that customer's consent.</li>
+        <li><b>Trust by design.</b> No language model decides, health data never counts, everything is logged.</li>
       </ul>`,
     actions: () => [
-      { label: '↺ Opnieuw', run: async () => { goStep(0); await STEPS[0].actions()[0].run(); } },
-      { label: 'Sluiten', kind: 'ghost', run: () => closeTour() },
+      { label: '↺ Again', run: async () => { goStep(0); await STEPS[0].actions()[0].run(); } },
+      { label: 'Close', kind: 'ghost', run: () => closeTour() },
     ],
     done: () => true,
   },
 ];
-// Stop once Kate may ask (week 14, 71%). Tom & Lien have no sensitive signals anymore: health signals never count.
 const step3Done = () => faseAt('vragen');
 const lastShared = () => [...(S.m?.signalenDetail ?? [])].reverse().find((s) => s.bron === 'EIGEN_AI');
 const check = (ok, label, detail) => `<li class="${ok ? 'ok' : ''}"><span>${ok ? '✓' : '•'}</span>${label}${detail ? ` <em>${detail}</em>` : ''}</li>`;
@@ -311,27 +369,27 @@ const check = (ok, label, detail) => `<li class="${ok ? 'ok' : ''}"><span>${ok ?
 const dock = document.createElement('aside');
 dock.className = 'tour';
 dock.id = 'tour';
-dock.setAttribute('aria-label', 'Rondleiding');
+dock.setAttribute('aria-label', 'Guided tour');
 dock.hidden = true;
 dock.innerHTML = `
   <div class="t-card">
     <div class="t-head">
       <span class="t-step" id="tStep"></span>
       <div class="t-dots" id="tDots"></div>
-      <button class="t-x" id="tClose" title="Tour sluiten" aria-label="Tour sluiten">✕</button>
+      <button class="t-x" id="tClose" title="Close the tour" aria-label="Close the tour">✕</button>
     </div>
     <h3 id="tTitle"></h3>
     <div class="t-body" id="tBody"></div>
     <div class="t-actions" id="tActions"></div>
     <p class="t-hint" id="tHint"></p>
     <div class="t-nav">
-      <button class="t-prev" id="tPrev">← Vorige</button>
-      <button class="t-next" id="tNext">Volgende →</button>
+      <button class="t-prev" id="tPrev">← Back</button>
+      <button class="t-next" id="tNext">Next →</button>
     </div>
   </div>
   <div class="t-live">
     <section class="t-sec" data-sec="map">
-      <h4><span class="live-dot"></span>Wie praat met wie <em>live</em></h4>
+      <h4><span class="live-dot"></span>Who talks to whom <em>live</em></h4>
       <svg class="t-map" viewBox="0 0 380 200" role="img" aria-label="Live verkeer tussen de onderdelen">
         <defs><marker id="tah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--wire)"/></marker></defs>
         <path class="w" data-w="app"  d="M118 23 C 190 23, 205 62, 248 66"/>
@@ -340,32 +398,33 @@ dock.innerHTML = `
         <path class="w" data-w="ai"   d="M118 143 H 146"/>
         <path class="w" data-w="mcp"  d="M202 143 C 232 143, 232 104, 248 100"/>
         <path class="w" data-w="src"  d="M311 152 V 120"/>
-        <g class="n" data-n="app"><rect x="6" y="8" width="112" height="30" rx="8"/><text x="62" y="27">App · Tom</text></g>
-        <g class="n" data-n="bo"><rect x="6" y="48" width="112" height="30" rx="8"/><text x="62" y="67">Backoffice</text></g>
+        <g class="n" data-n="app"><rect x="6" y="8" width="112" height="30" rx="8"/><text x="62" y="27">KBC Mobile</text></g>
+        <g class="n" data-n="bo"><rect x="6" y="48" width="112" height="30" rx="8"/><text x="62" y="67">Back office</text></g>
         <g class="n" data-n="kate"><rect x="6" y="88" width="112" height="30" rx="8"/><text x="62" y="107">Kate</text></g>
-        <g class="n" data-n="ai"><rect x="6" y="128" width="112" height="30" rx="8"/><text x="62" y="147">Eigen AI · Lien</text></g>
+        <g class="n" data-n="ai"><rect x="6" y="128" width="112" height="30" rx="8"/><text x="62" y="147">Own AI</text></g>
         <g class="n infra" data-n="mcp"><rect x="146" y="128" width="56" height="30" rx="8"/><text x="174" y="147">MCP</text></g>
-        <g class="n core" data-n="api"><rect x="248" y="50" width="126" height="70" rx="10"/><text x="311" y="80">Backend API</text><text class="sub" x="311" y="97">score · fase · audit</text></g>
-        <g class="n src" data-n="src"><rect x="248" y="152" width="126" height="42" rx="8"/><text x="311" y="170">Bronnen</text><text class="sub" x="311" y="185">Doccle · geofence · rekening</text></g>
+        <g class="n core" data-n="api"><rect x="248" y="50" width="126" height="70" rx="10"/><text x="311" y="80">Backend API</text><text class="sub" x="311" y="97">score · agent · audit</text></g>
+        <g class="n src" data-n="src"><rect x="248" y="152" width="126" height="42" rx="8"/><text x="311" y="170">Sources</text><text class="sub" x="311" y="185">with consent only</text></g>
         <g id="tPackets"></g>
       </svg>
     </section>
     <section class="t-sec" data-sec="score">
-      <h4><span class="live-dot"></span>Gezinsuitbreiding · Tom &amp; Lien <em id="tWeek"></em></h4>
+      <h4><span class="live-dot"></span><span id="tFocus"></span> <em id="tWeek"></em></h4>
       <div class="gauge"><div class="fill" id="tFill"></div><i style="left:40%"></i><i style="left:70%"></i><i style="left:90%"></i><b id="tScore">0%</b></div>
       <ol class="fases" id="tFases">${FASES.map((f) => `<li data-f="${f}">${f}</li>`).join('')}</ol>
       <p class="conf" id="tConf"></p>
+      <p class="conf" id="tAgent"></p>
     </section>
     <section class="t-sec" data-sec="split">
-      <h4>Adviseur ziet <span class="vs">vs</span> klant ziet <button class="t-json" id="tJson">{ } JSON</button></h4>
+      <h4>Adviser sees <span class="vs">vs</span> customer sees <button class="t-json" id="tJson">{ } JSON</button></h4>
       <div class="split">
         <ul id="tAdv"></ul>
         <ul id="tKlant"></ul>
       </div>
     </section>
     <section class="t-sec" data-sec="feed">
-      <h4><span class="live-dot"></span>Gebeurtenissen</h4>
-      <ol class="feed" id="tFeed"><li class="empty">Nog niets gebeurd.</li></ol>
+      <h4><span class="live-dot"></span>Events</h4>
+      <ol class="feed" id="tFeed"><li class="empty">Nothing yet.</li></ol>
     </section>
   </div>`;
 document.body.append(dock);
@@ -374,10 +433,12 @@ const modal = document.createElement('div');
 modal.className = 't-modal';
 modal.hidden = true;
 modal.innerHTML = `<div class="t-mbox" role="dialog" aria-label="Ruwe antwoorden van de backend">
-  <header><b>GET /v1/klanten/${KLANT}/momenten</b><button id="tMClose" aria-label="Sluiten">✕</button></header>
-  <div class="cols"><div><h5>als <code>adviseur</code></h5><pre id="tMAdv"></pre></div><div><h5>als <code>tom</code> (klant)</h5><pre id="tMKlant"></pre></div></div></div>`;
+  <header><b id="tMHead"></b><button id="tMClose" aria-label="Close">✕</button></header>
+  <div class="cols"><div><h5>as <code>adviseur</code></h5><pre id="tMAdv"></pre></div><div><h5 id="tMWho"></h5><pre id="tMKlant"></pre></div></div></div>`;
 document.body.append(modal);
 function showJson() {
+  $t('#tMHead').textContent = `GET /v1/klanten/${F.klant}/momenten`;
+  $t('#tMWho').innerHTML = `as <code>${F.user}</code> (customer)`;
   $t('#tMAdv').textContent = JSON.stringify(S.m, null, 2) ?? 'null';
   $t('#tMKlant').textContent = JSON.stringify(S.k, null, 2) ?? 'null';
   modal.hidden = false;
@@ -407,7 +468,7 @@ const put = (el, html) => { if (el.dataset.html !== html) { el.innerHTML = html;
 function render() {
   if (!S.open) return;
   const st = STEPS[S.i];
-  $t('#tStep').textContent = `Stap ${S.i + 1} / ${STEPS.length}`;
+  $t('#tStep').textContent = `Step ${S.i + 1} / ${STEPS.length}`;
   $t('#tTitle').textContent = st.title;
   put($t('#tBody'), st.body());
   const done = st.done?.() ?? true;
@@ -421,7 +482,7 @@ function render() {
 
   $t('#tPrev').disabled = S.i === 0;
   const next = $t('#tNext');
-  next.textContent = S.i === STEPS.length - 1 ? 'Sluiten' : 'Volgende →';
+  next.textContent = S.i === STEPS.length - 1 ? 'Close' : 'Next →';
   next.classList.toggle('ready', done && !S.running);
 
   // Notes and spotlight on the panels
@@ -440,14 +501,14 @@ function render() {
 
 async function runAction(a) {
   if (!a || S.running) return;
-  S.running = a.busy || 'Bezig…';
+  S.running = a.busy || 'Working…';
   S.err = null;
   render();
   try {
     await a.run();
   } catch (e) {
     console.error('[tour]', e);
-    S.err = e.status === 429 ? 'Te veel aanmeldingen na elkaar: wacht een minuut en probeer opnieuw.' : `Mislukt: ${e.message}`;
+    S.err = e.status === 429 ? 'Too many logins in a row: wait a minute and try again.' : `Failed: ${e.message}`;
   } finally {
     S.running = null;
     await refresh().catch(() => {});
@@ -460,6 +521,7 @@ function goStep(i) {
   S.stepAt = Date.now();
   S.err = null;
   const st = STEPS[S.i];
+  if (st.focus && st.focus !== F) { F = st.focus; S.m = null; S.k = null; S.agent = null; S.kansen = []; lastSig = null; }
   go(st.mode);
   if (st.chat) useChat(st.chat);
   if (st.bo) send('backoffice', { kateStudio: 'page', ...st.bo });
@@ -512,24 +574,31 @@ function refresh() {
 }
 async function doRefresh() {
   try {
-    const [a, audit] = await Promise.all([api('adviseur', 'GET', `/klanten/${KLANT}/momenten`), api('adviseur', 'GET', '/audit')]);
+    const [a, audit, beslissingen, kansen] = await Promise.all([
+      api('adviseur', 'GET', `/klanten/${F.klant}/momenten`),
+      api('adviseur', 'GET', '/audit'),
+      api('adviseur', 'GET', `/klanten/${F.klant}/agent`),
+      api('adviseur', 'GET', `/klanten/${F.klant}/kansen`),
+    ]);
+    S.agent = beslissingen.find((b) => b.moment === F.moment) ?? null;
+    S.kansen = kansen;
     S.online = true;
     const prev = { week: S.week, m: S.m };
     S.week = a.week;
-    S.m = a.momenten.find((x) => x.moment === MOMENT_ID) ?? null;
+    S.m = a.momenten.find((x) => x.moment === F.moment) ?? null;
     const sharedBefore = S.seen.gedeeld;
     handleAudit(audit);
     const sig = JSON.stringify([S.week, S.m?.score, S.m?.fase, S.m?.bevestigd, S.m?.signalen, S.m?.acties?.length]);
     if (sig !== lastSig) {
       // Only ask for the customer's view when something changed: keeps the poll light
-      const k = await api('tom', 'GET', `/klanten/${KLANT}/momenten`);
-      S.k = k.momenten.find((x) => x.moment === MOMENT_ID) ?? null;
+      const k = await api(F.user, 'GET', `/klanten/${F.klant}/momenten`);
+      S.k = k.momenten.find((x) => x.moment === F.moment) ?? null;
       if (lastSig !== null) diffState(prev, S.seen.gedeeld !== sharedBefore);
       lastSig = sig;
     }
   } catch (e) {
     S.online = false;
-    if (e.status === 429) S.err = 'Te veel aanmeldingen na elkaar: wacht een minuut.';
+    if (e.status === 429) S.err = 'Too many logins in a row: wait a minute.';
   }
   render();
 }
@@ -539,7 +608,7 @@ function diffState(prev, justShared) {
   const now = S.m;
   const changes = [];
   if (prev.week !== S.week) {
-    feed(S.week < prev.week ? '↺' : '🕒', S.week < prev.week ? `Demo-klok terug naar week ${S.week}` : `Demo-klok → week ${S.week}`, 'adviseur');
+    feed(S.week < prev.week ? '↺' : '🕒', S.week < prev.week ? `Demo clock back to week ${S.week}` : `Demo clock → week ${S.week}`, 'adviseur');
     pulse(['bo'], 'write');
   }
   const before = new Set(was?.signalen ?? []);
@@ -547,21 +616,21 @@ function diffState(prev, justShared) {
     if (before.has(s.id)) continue;
     if (s.bron === 'EIGEN_AI' && justShared) continue; // the share itself is already in the feed
     if (s.bron !== 'EIGEN_AI') pulse(['src'], 'write');
-    feed('📥', `Signaal van <b>${BRON[s.bron] ?? s.bron}</b>: ${escT(s.label)}${s.gevoelig ? ' <span class="lock">🔒 gevoelig, niet voor de klant</span>' : ''}`, s.bron.toLowerCase());
+    feed('📥', `Signal from <b>${BRON[s.bron] ?? s.bron}</b> (with consent): ${escT(s.label)}${s.gevoelig ? ' <span class="lock">🔒 sensitive, not for the customer</span>' : ''}`, s.bron.toLowerCase());
   }
   const gone = (was?.signalen ?? []).filter((id) => !(now?.signalen ?? []).includes(id)).length;
-  if (gone) feed('🗑', `${gone} signalen gewist`, 'backend');
+  if (gone) feed('🗑', `${gone} signals deleted`, 'backend');
   if ((was?.score ?? 0) !== (now?.score ?? 0)) changes.push(pct(now?.score));
   if (was?.fase !== now?.fase) {
     feed(
       now ? '⬆' : '∅',
-      !was ? `Moment verschijnt, fase <b>${now.fase}</b>` : !now ? 'Moment verdwenen: geen signalen meer' : `Fase <b>${was.fase}</b> → <b>${now.fase}</b>`,
+      !was ? `${escT(F.name)}: moment appears, phase <b>${now.fase}</b>` : !now ? 'Moment gone: no signals left' : `Phase <b>${was.fase}</b> → <b>${now.fase}</b>`,
       'backend',
       true,
     );
-    changes.push(now?.fase ?? 'geen moment');
+    changes.push(now?.fase ?? 'no moment');
   }
-  if (!was?.bevestigd && now?.bevestigd) changes.push('bevestigd');
+  if (!was?.bevestigd && now?.bevestigd) changes.push('confirmed');
   if (!changes.length && !gone && prev.week === S.week) return;
   // The app, the backoffice and Kate poll the backend: show the change arriving at each of them.
   // The customer's own AI doesn't poll (it only calls KBC when asked), so it gets nothing.
@@ -576,7 +645,11 @@ function diffState(prev, justShared) {
   }, 350);
 }
 
-const PATH_OF = { adviseur: ['bo'], tom: ['app'], ingest: ['src'] };
+const PATH_OF = { adviseur: ['bo'], tom: ['app'], lien: ['app'], jonas: ['app'], ingest: ['src'], 'kate-agent': [] };
+const CUSTOMERS = ['tom', 'lien', 'jonas'];
+const NAME = { tom: 'Tom', lien: 'Lien', jonas: 'Jonas' };
+/** "product:save-for-someone-else" → "save for someone else"; a partner pair → "Billit + Kube" */
+const linkName = (id = '') => (id.startsWith('koppeling:') ? id.slice(10).split('~').map((x) => x[0].toUpperCase() + x.slice(1)).join(' + ') : id.replace(/^\w+:/, '').replace(/-/g, ' '));
 const lastRead = {};
 function handleAudit(list) {
   const key = (e) => `${e.ts}|${e.actor}|${e.actie}|${e.detail ?? ''}`;
@@ -590,34 +663,36 @@ function handleAudit(list) {
 
 function onAudit(e) {
   const ts = Date.parse(e.ts);
-  // The tour's own no-LLM calls go straight to the API as tom: don't draw them as coming from the app
-  const byTour = e.actor === 'tom' && Math.abs(ts - S.direct) < 5000;
-  const viaChat = e.actor === 'lien' ? (chatApp === 'kate' ? ['kate'] : ['ai', 'mcp']) : null;
+  // The tour's own no-LLM calls go straight to the API as the customer: don't draw them as coming from the app
+  const byTour = CUSTOMERS.includes(e.actor) && Math.abs(ts - S.direct) < 5000;
+  // The chat pane's customer talks through their own AI (MCP), or through Kate
+  const fromChat = e.actor === S.users.chat && e.actie === 'moment_gedeeld';
+  const viaChat = fromChat ? (chatApp === 'kate' ? ['kate'] : ['ai', 'mcp']) : null;
   const path = byTour ? [] : viaChat ?? PATH_OF[e.actor] ?? ['bo'];
-  const who = byTour ? 'De tour (zonder LLM)' : e.actor === 'lien' ? (chatApp === 'kate' ? 'Lien via Kate' : "Lien's eigen AI via MCP") : e.actor;
+  const who = byTour ? 'The tour (no LLM)' : fromChat ? `${NAME[e.actor] ?? e.actor}'s own AI via MCP` : NAME[e.actor] ?? e.actor;
   const moment = (e.detail ?? '').split('/');
   switch (e.actie) {
     case 'moment_gedeeld': {
       S.seen.gedeeld = ts;
-      S.seen.via = e.actor === 'lien' ? 'mcp' : 'direct';
+      S.seen.via = fromChat && !byTour ? 'mcp' : 'direct';
       const what = `<b>${escT(moment[0]?.toLowerCase())}</b> (${escT(moment[1])})`;
-      if (e.actor === 'lien') { pulse(['ai', 'mcp'], 'write'); feed('🔗', `<b>Lien's eigen AI</b> deelde ${what} via MCP`, 'lien', true); }
-      else { pulse(path, 'write'); feed('🔗', `<b>${escT(who)}</b> deelde ${what}: dezelfde call als de MCP-tool`, e.actor, true); }
+      if (fromChat && !byTour) { pulse(['ai', 'mcp'], 'write'); feed('🔗', `<b>${escT(who)}</b> shared ${what}, only the moment, never the conversation`, e.actor, true); }
+      else { pulse(path, 'write'); feed('🔗', `<b>${escT(who)}</b> shared ${what}: the same call as the MCP tool`, e.actor, true); }
       break;
     }
     case 'moment_bevestigd':
       pulse(path, 'write');
-      feed('✓', `<b>${escT(who)}</b>: "Ja, klopt"`, e.actor, true);
+      feed('✓', `<b>${escT(who)}</b> confirmed: "Ja, klopt"`, e.actor, true);
       break;
     case 'moment_ingetrokken':
       S.seen.ingetrokken = ts;
-      S.seen.via = e.actor === 'lien' && chatApp !== 'kate' ? 'mcp' : 'direct';
+      S.seen.via = e.actor === S.users.chat && chatApp !== 'kate' ? 'mcp' : 'direct';
       pulse(path, 'write');
-      feed('✋', `<b>${escT(who)}</b> trok het moment in: alle signalen gewist`, e.actor, true);
+      feed('✋', `<b>${escT(who)}</b> revoked the moment: every signal deleted`, e.actor, true);
       break;
     case 'demo_reset':
       pulse(['bo'], 'write');
-      feed('↺', 'Demo gereset: klok, signalen en audit terug naar het begin', 'adviseur');
+      feed('↺', 'Demo reset: clock, signals and audit back to the start', 'adviseur');
       break;
     case 'login':
       // No feed line: the showcase and the tour log in too, which says nothing about the demo
@@ -625,12 +700,30 @@ function onAudit(e) {
       break;
     case 'update_toestemming':
       pulse(path, 'write');
-      feed('🛡', `<b>${escT(e.actor)}</b> paste toestemming aan`, e.actor, true);
+      feed('🛡', `<b>${escT(who)}</b> changed their consent`, e.actor, true);
       break;
     case 'signaal_ontvangen':
     case 'signaal_geweigerd':
       pulse(['src'], 'write');
-      if (e.actie === 'signaal_geweigerd') feed('⛔', `Signaal van ${escT(e.detail)} geweigerd: geen toestemming`, 'backend', true);
+      if (e.actie === 'signaal_geweigerd') feed('⛔', `Signal from ${escT(e.detail)} refused: no consent`, 'backend', true);
+      break;
+    case 'agent_beslissing': {
+      const [m, kanaal] = moment;
+      feed('🤖', `<b>KBC agent</b>: ${escT((m ?? '').toLowerCase().replace('_', ' '))} → ${kanaal === 'automatisch' ? '<b>automatic</b>, Kate in the app' : '<b>an adviser</b> in the loop'}`, 'agent', true);
+      break;
+    }
+    case 'kans_verstuurd':
+      pulse(path, 'write');
+      feed(e.actor === 'kate-agent' ? '🎁' : '📨', e.actor === 'kate-agent'
+        ? `<b>Kate</b> sent an offer on her own: ${escT(linkName(e.detail))}`
+        : `<b>The adviser</b> sent ${e.detail?.startsWith('koppeling:') ? 'a partner pair' : 'an offer'}: ${escT(linkName(e.detail))}`, e.actor, true);
+      break;
+    case 'kans_interesse':
+      pulse(path, 'write');
+      feed('💚', `<b>${escT(who)}</b> said yes to ${escT(linkName(e.detail))}${e.detail?.startsWith('koppeling:') ? ': the partners now work together' : ''}`, e.actor, true);
+      break;
+    case 'kans_afgewezen':
+      feed('✋', `<b>${escT(who)}</b> said no to ${escT(linkName(e.detail))}`, e.actor);
       break;
     default: {
       // Reads of personal data: a faint pulse, not a feed line (the backoffice reads every 1.5 s)
@@ -706,6 +799,8 @@ let scoreAnim = 0;
 function renderLive() {
   const score = Math.round((S.m?.score ?? 0) * 100);
   $t('#tWeek').textContent = S.online ? `week ${S.week}` : 'offline';
+  $t('#tFocus').textContent = `${F.label} · ${F.name}`;
+  put($t('#tAgent'), S.agent ? `🤖 Agent: <b>${S.agent.kanaal === 'automatisch' ? 'automatic, Kate in the app' : 'adviser in the loop'}</b> · app ${pct(S.agent.engagement.app)} · adviser ${pct(S.agent.engagement.adviseur)}` : '🤖 Agent: nothing to decide yet');
   const fill = $t('#tFill');
   fill.style.width = `${score}%`;
   fill.dataset.f = faseOf();
@@ -724,19 +819,19 @@ function renderLive() {
     li.classList.toggle('on', li.dataset.f === faseOf() && Boolean(S.m));
     li.classList.toggle('past', Boolean(S.m) && FASES.indexOf(li.dataset.f) < FASES.indexOf(faseOf()));
   }
-  put($t('#tConf'), S.m ? `${S.m.bevestigd ? '<b class="yes">✓ bevestigd door de klant</b>' : 'nog niet bevestigd door de klant'} · ${S.m.signalen.length} signalen` : 'Geen signalen: er is geen moment.');
+  put($t('#tConf'), S.m ? `${S.m.bevestigd ? '<b class="yes">✓ confirmed by the customer</b>' : 'not confirmed by the customer yet'} · ${S.m.signalen.length} signals, all with consent` : 'No signals: there is no moment.');
 
-  const adv = (S.m?.signalenDetail ?? []).map((s) => `<li class="${s.gevoelig ? 'gev' : ''}"><span class="bron" data-b="${s.bron}">${BRON[s.bron] ?? s.bron}</span>${escT(s.label)}${s.gevoelig ? ' <em>🔒 enkel adviseur</em>' : ''}<small>w${s.week} · +${s.gewicht}</small></li>`);
-  put($t('#tAdv'), `<li class="hd">Backoffice <code>adviseur</code></li>${adv.join('') || '<li class="none">Geen signalen</li>'}`);
+  const adv = (S.m?.signalenDetail ?? []).map((s) => `<li class="${s.gevoelig ? 'gev' : ''}"><span class="bron" data-b="${s.bron}">${BRON[s.bron] ?? s.bron}</span>${escT(s.label)}${s.gevoelig ? ' <em>🔒 adviser only</em>' : ''}<small>w${s.week} · +${s.gewicht}</small></li>`);
+  put($t('#tAdv'), `<li class="hd">Back office <code>adviseur</code></li>${adv.join('') || '<li class="none">No signals</li>'}`);
   const k = S.k;
   const kl = k
     ? [
         ...k.waarom.map((w) => `<li>${escT(w)}</li>`),
-        k.andereSignalen ? `<li class="hidden-n">+ ${k.andereSignalen} andere signalen waarvoor je toestemming gaf</li>` : '',
-        `<li class="acts ${k.acties.length ? 'yes' : ''}">${k.acties.length ? `🎁 ${k.acties.length} acties (fase voorstel)` : 'Acties: verborgen tot voorstel'}</li>`,
+        k.andereSignalen ? `<li class="hidden-n">+ ${k.andereSignalen} other signals you consented to</li>` : '',
+        `<li class="acts ${k.acties.length ? 'yes' : ''}">${k.acties.length ? `🎁 ${k.acties.length} actions (phase voorstel)` : 'Actions: hidden until voorstel'}</li>`,
       ]
     : ['<li class="none">Geen moment</li>'];
-  put($t('#tKlant'), `<li class="hd">App &amp; Kate <code>klant</code></li>${kl.join('')}`);
+  put($t('#tKlant'), `<li class="hd">App <code>${F.user}</code></li>${kl.join('')}`);
 }
 
 // ---------- bridge to the panes ----------
@@ -752,7 +847,10 @@ addEventListener('message', (e) => {
   if (m.kateStudio === 'ready') {
     S.users[part] = m.user ?? null;
     if (part === 'chat') S.chatApp = m.app;
-    if (!m.user && S.wantLogin) send(part, { kateStudio: 'login' });
+    // Each pane as its demo user: the app as Tom (Jonas in his last steps), the chat as Jonas's own AI
+    const want = part === 'app' ? S.appUser : part === 'chat' ? 'jonas' : null;
+    const ok = part === 'app' ? (S.appUser === 'tom' ? m.user === 'tom' || m.user === 'lien' : m.user === want) : want ? m.user === want : Boolean(m.user);
+    if (S.wantLogin && !ok) send(part, { kateStudio: 'login', ...(want ? { user: want } : {}) });
     if (part === 'backoffice' && m.user && S.open && STEPS[S.i].bo) send('backoffice', { kateStudio: 'page', ...STEPS[S.i].bo });
   } else if (m.kateStudio === 'busy') {
     S.chatBusy = m.busy;
@@ -764,7 +862,7 @@ addEventListener('message', (e) => {
     const ev = m.event ?? {};
     if (ev.type === 'kate-vraag' && !S.kate.vraag) { S.kate.vraag = true; feed('💬', '<b>Kate</b> vraagt uit zichzelf: "Klopt dit?"', 'kate', true); flash('chat', 'Kate vraagt'); }
     if (ev.type === 'kate-plan' && !S.kate.plan) { S.kate.plan = true; feed('🎁', '<b>Kate</b> stelt het plan voor', 'kate', true); flash('chat', 'Kate stelt voor'); }
-    if (ev.type === 'tool' && !ev.isError && ev.name === 'get_moment_plan') { pulse(['ai', 'mcp'], 'read'); feed('🔗', "<b>Lien's eigen AI</b> las het plan via MCP", 'lien'); }
+    if (ev.type === 'tool' && !ev.isError && ev.name === 'get_moment_plan') { pulse(['ai', 'mcp'], 'read'); feed('🔗', `<b>${escT(NAME[S.users.chat] ?? 'The')}'s own AI</b> read the plan through MCP`, S.users.chat ?? 'ai'); }
   }
   render();
 });
