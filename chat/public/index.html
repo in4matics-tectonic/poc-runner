@@ -457,7 +457,10 @@ async function render() {
     showHistory(events);
   } catch { showHistory([]); }
   $('input').focus();
-  if (APP === 'kate') nudge();
+  if (APP === 'kate') {
+    await sayOpener();
+    nudge();
+  }
 }
 
 // ---------- actions ----------
@@ -512,6 +515,29 @@ function kateAnswer(moment, answer) {
     return { events: r.events.filter((e) => e.type !== 'user') };
   });
 }
+
+// Opener: KBC Mobile opens Kate on something she found in "Mijn wereld". The first time it's in the URL
+// (?opener=…&finding=…); while the chat stays open in the app, it arrives as a { type: 'kate:opener' } message.
+let pendingOpener = APP === 'kate' && params.get('opener')
+  ? { text: params.get('opener').slice(0, 600), findingId: params.get('finding') || '' }
+  : null;
+async function sayOpener() {
+  if (!pendingOpener || !session || APP !== 'kate') return;
+  const opener = pendingOpener;
+  pendingOpener = null;
+  try {
+    const { events } = await call('/api/kate/opener', opener);
+    events.forEach(addEvent);
+  } catch {}
+}
+window.addEventListener('message', (e) => {
+  // From the app that embeds this page (iframe on web), or dispatched in-page by the app's WebView.
+  const fromParent = window.parent !== window && e.source === window.parent;
+  const fromWebView = window.parent === window && e.source === null;
+  if (!(fromParent || fromWebView) || e.data?.type !== 'kate:opener' || typeof e.data.text !== 'string') return;
+  pendingOpener = { text: e.data.text.slice(0, 600), findingId: String(e.data.findingId ?? '') };
+  sayOpener();
+});
 
 // Kate speaks up by herself when the demo clock moves a moment to "vragen" or "voorstel"
 let nudging = false;

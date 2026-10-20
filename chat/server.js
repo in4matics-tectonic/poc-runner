@@ -497,6 +497,22 @@ http
           return send(res, 200, { ok: true });
         }
         if (route === 'POST /api/kate/nudge') return send(res, 200, { events: await kateNudge(session) });
+        // KBC Mobile opens the chat on something Kate found in "Mijn wereld": she starts with that, and it
+        // stays in the history so a reply like "Ja, vertel meer" makes sense to the model.
+        if (route === 'POST /api/kate/opener') {
+          const { text, findingId } = await readJson(req);
+          if (typeof text !== 'string' || !text.trim() || text.length > 600) return send(res, 400, { error: 'bad_text' });
+          const opener = String(findingId ?? '').slice(0, 120);
+          const last = convo(session, 'kate').events.at(-1);
+          // The same finding tapped again: Kate doesn't repeat herself.
+          if (last?.opener === opener && last.text === text.trim()) return send(res, 200, { events: [] });
+          const event = kateSays(
+            session,
+            { type: 'text', text: text.trim(), opener },
+            '(De klant opent de chat vanuit "Mijn wereld", bij iets wat Kate daar vond.)',
+          );
+          return send(res, 200, { events: [event] });
+        }
         if (route === 'POST /api/kate/answer') {
           const { moment, answer } = await readJson(req);
           if (!['Ja, klopt', 'Niet voor ons', 'Later'].includes(answer)) return send(res, 400, { error: 'bad_answer' });
